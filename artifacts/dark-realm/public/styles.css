@@ -136,7 +136,7 @@ body{background:#000;overflow:hidden;width:100vw;height:100vh;}
 .shop-tabs{display:flex;gap:6px;margin-bottom:10px;}
 .shop-tab{flex:1;padding:6px 0;text-align:center;font-family:'Cinzel',serif;font-size:8px;letter-spacing:1px;color:#666;cursor:pointer;border:1px solid rgba(160,120,40,.2);border-radius:4px;transition:all .15s;}
 .shop-tab.on{color:#c8a040;border-color:rgba(160,120,40,.6);background:rgba(160,120,40,.1);}
-.shop-list{display:flex;flex-direction:column;gap:7px;max-height:340px;overflow-y:auto;}
+.shop-list{display:flex;flex-direction:column;gap:7px;max-height:340px;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain;}
 .shop-list::-webkit-scrollbar{width:3px;}
 .shop-list::-webkit-scrollbar-thumb{background:rgba(160,120,40,.25);border-radius:2px;}
 .shop-item{display:flex;align-items:center;gap:8px;background:rgba(18,13,6,.9);border:1px solid rgba(160,120,40,.18);border-radius:5px;padding:8px;}

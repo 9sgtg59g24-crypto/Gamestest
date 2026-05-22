@@ -187,6 +187,7 @@ function gainXp(skill,amt){
     showLvlUp(`${SK[skill].icon}  ${SK[skill].name.toUpperCase()}\nLEVEL ${nw}`);
     if(skill==='hitpoints'){player.maxHp=nw*10;player.hp=Math.min(player.hp,player.maxHp);}
     if(skill==='prayer'){player.maxPrayer=nw;player.prayer=Math.min(player.prayer,player.maxPrayer);}
+    saveGame();
   }
   refreshHUD();
   if(panelOpen)renderPanel();
@@ -1109,6 +1110,7 @@ function renderShop(){
       addToInventory(id,1);
       addLog(`Bought ${def.icon} ${def.name} for ${def.buy} coins.`,'i');
       showNotif(`Bought ${def.name}`);
+      saveGame();
       renderShop();
     });
   });
@@ -1123,6 +1125,7 @@ function renderShop(){
       if(inventory[slotIdx].qty<=0) inventory[slotIdx]=null;
       addLog(`Sold ${def.icon} ${def.name} for ${def.sell} coins.`,'i');
       showNotif(`Sold ${def.name} +${def.sell}🪙`);
+      saveGame();
       renderShop();
     });
   });
@@ -1494,7 +1497,7 @@ const camDrag={active:false,id:null,lx:0,ly:0,moved:false};
 document.addEventListener('touchstart',e=>{
   for(const t of e.changedTouches){
     const el=document.elementFromPoint(t.clientX,t.clientY);
-    if(el&&(el.closest('#jZone')||el.closest('#btns')||el.closest('#sidePanel')||el.closest('#invBtn')||el.closest('#skBtn')))continue;
+    if(el&&(el.closest('#jZone')||el.closest('#btns')||el.closest('#sidePanel')||el.closest('#invBtn')||el.closest('#skBtn')||el.closest('#dialogueBox')))continue;
     if(camDrag.active)continue;
     camDrag.active=true;camDrag.id=t.identifier;camDrag.lx=t.clientX;camDrag.ly=t.clientY;camDrag.moved=false;
     hideHint();
@@ -1540,6 +1543,7 @@ function tryPickupLoot(cx,cy){
     const def=ITEM_DEFS[lootObj.itemId];
     addLog(`Picked up: ${def.icon} ${def.name}`,'i');
     showNotif(`${def.icon} ${def.name}`);
+    saveGame();
     if(panelOpen&&activeTab==='inv')renderPanel();
   }
 }
@@ -2320,8 +2324,53 @@ function update(){
 
 function loop(){requestAnimationFrame(loop);update();renderer.render(scene,camera);}
 
+// ── SAVE / LOAD ──
+const SAVE_KEY='darkRealm_save_v1';
+
+function saveGame(){
+  try{
+    const data={
+      skills:{},
+      inventory:JSON.parse(JSON.stringify(inventory)),
+      equippedWeaponId:equippedWeapon.id,
+      score:player.score,
+    };
+    for(const k in SK) data.skills[k]=SK[k].xp;
+    localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+  }catch(e){}
+}
+
+function loadGame(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw) return;
+    const data=JSON.parse(raw);
+    if(data.skills){
+      for(const k in SK){
+        if(data.skills[k]!==undefined) SK[k].xp=data.skills[k];
+      }
+    }
+    if(Array.isArray(data.inventory)){
+      for(let i=0;i<28;i++) inventory[i]=data.inventory[i]||null;
+    }
+    if(data.equippedWeaponId&&WEAPONS[data.equippedWeaponId]){
+      equippedWeapon=WEAPONS[data.equippedWeaponId];
+    }
+    if(typeof data.score==='number') player.score=data.score;
+    player.maxHp=skLv('hitpoints')*10;
+    player.hp=player.maxHp;
+    player.maxPrayer=skLv('prayer');
+    player.prayer=player.maxPrayer;
+  }catch(e){}
+}
+
+// Periodic auto-save every 30 seconds
+setInterval(saveGame,30000);
+
 // ── INIT ──
+loadGame();
 refreshHUD();
 updateWeaponHUD();
-showNotif('DARK REALM — IRON DAGGER EQUIPPED');
+updateWeaponMesh();
+showNotif('DARK REALM — Welcome back!');
 loop();
