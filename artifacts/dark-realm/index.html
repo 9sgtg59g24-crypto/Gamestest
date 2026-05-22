@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Dark Realm</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="pane" id="vitals">
+    <div class="vl">Hitpoints</div><div class="vbar"><div class="vf" id="hpF" style="width:100%"></div></div><div class="vt" id="hpT">10/10</div>
+    <div class="vl">Prayer</div><div class="vbar"><div class="vf" id="stF" style="width:100%"></div></div><div class="vt" id="stT">1/1</div>
+    <div class="vl">Run Energy</div><div class="vbar"><div class="vf" id="reF" style="width:100%"></div></div><div class="vt" id="reT">100%</div>
+  </div>
+  <div class="pane" id="wpnBox">
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span class="wpn-ico" id="wpnIco">🗡️</span>
+      <div><div class="wpn-name" id="wpnName">Iron Dagger</div><div class="wpn-stat" id="wpnStat">ATK+3 SPD:Fast</div></div>
+    </div>
+  </div>
+  <div id="clock"><canvas id="mmC" width="68" height="68"></canvas></div>
+  <div id="timeLabel">DUSK</div>
+  <div class="pane" id="badge"><div class="bt">COMBAT</div><div class="bv" id="combLvl">3</div><div class="bs" id="totLvl">TOTAL:32</div></div>
+  <div class="pane" id="notif"></div>
+  <div id="coords">X:0  Z:0</div>
+</div>
+
+<div id="invBtn">🎒</div>
+<div id="skBtn">⚔</div>
+
+<div id="sidePanel">
+  <div id="spHead"><div id="spTitle">INVENTORY</div><div id="spX">✕</div></div>
+  <div id="spTabs">
+    <div class="sptab on" data-t="inv">ITEMS</div>
+    <div class="sptab" data-t="wpn">WEAPONS</div>
+    <div class="sptab" data-t="skills">SKILLS</div>
+    <div class="sptab" data-t="log">LOG</div>
+  </div>
+  <div id="spBody"></div>
+</div>
+
+<div id="tooltip"><div class="tt-name" id="ttN"></div><div class="tt-type" id="ttTy"></div><div class="tt-stat" id="ttS"></div></div>
+
+<div id="jZone"><div id="jBase"></div><div id="jKnob"></div></div>
+
+<div id="btns">
+  <div class="col">
+    <button class="btn" id="bAtk">ATK</button>
+    <button class="btn" id="bSprint">RUN</button>
+  </div>
+  <button class="btn" id="bJump">JUMP</button>
+</div>
+
+<div id="hint">DRAG TO ROTATE CAMERA<br>JOYSTICK TO MOVE<br>TAP LOOT TO PICK UP</div>
+
+<div id="lvlFlash"><div class="lvlMsg" id="lvlMsg"></div></div>
+
+<div id="slamWarn">⚠ DODGE!</div>
+
+<div id="talkPrompt">💬 Talk to Elara</div>
+<div id="talkPromptMerch">🛒 Talk to Aldric</div>
+
+<div id="dialogueBox">
+  <div id="dlgClose">✕</div>
+  <div id="dlgHeader">
+    <div id="dlgAvatar">🏥</div>
+    <div>
+      <div id="dlgName">ELARA</div>
+      <div id="dlgTitle">FIELD MEDIC · SAFE ZONE</div>
+    </div>
+  </div>
+  <div id="dlgBody">
+    <div id="dlgText"></div>
+    <div id="dlgOptions"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

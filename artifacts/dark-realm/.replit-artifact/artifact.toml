@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Dark Realm"
+version = "1.0.0"
+id = "artifacts/dark-realm"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26144
+
+[services.development]
+run = "pnpm --filter @workspace/dark-realm run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/dark-realm", "run", "build" ]
+publicDir = "artifacts/dark-realm/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26144"
+BASE_PATH = "/"
