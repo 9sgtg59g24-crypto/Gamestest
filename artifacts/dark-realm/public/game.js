@@ -2471,8 +2471,9 @@ function update(){
     if(!e.userData.dead&&e.userData.orbitRing) e.userData.orbitRing.rotation.y+=dt*2.2;
   }
 
-  // ── BANK CHEST PROMPT ──
+  // ── BANK CHEST PROMPT + TAB VISIBILITY ──
   const bankDist=Math.hypot(player.x-BANK_X,player.z-BANK_Z);
+  document.querySelector('.sptab[data-t="bank"]').style.display=bankDist<8?'':'none';
   const bankEl=document.getElementById('talkPromptBank');
   if(!dialogueOpen&&bankDist<6){
     const bPos=new THREE.Vector3(BANK_X,2.2,BANK_Z);bPos.project(camera);
