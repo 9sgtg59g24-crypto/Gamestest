@@ -91,6 +91,7 @@ const LOOT_TABLES = {
 };
 
 const inventory = new Array(28).fill(null);
+const storageSlots = new Array(28).fill(null);
 
 function countCoins(){
   let total=0;
@@ -208,7 +209,7 @@ document.querySelectorAll('.sptab').forEach(t=>{
     activeTab=t.dataset.t;
     document.querySelectorAll('.sptab').forEach(x=>x.classList.remove('on'));
     t.classList.add('on');
-    const titles={inv:'INVENTORY',wpn:'WEAPONS',skills:'SKILLS',log:'LOG'};
+    const titles={inv:'INVENTORY',wpn:'WEAPONS',skills:'SKILLS',bank:'BANK',log:'LOG'};
     document.getElementById('spTitle').textContent=titles[activeTab]||'';
     renderPanel();
   });
@@ -216,7 +217,7 @@ document.querySelectorAll('.sptab').forEach(t=>{
 function openPanel(tab){
   panelOpen=true;activeTab=tab;
   document.querySelectorAll('.sptab').forEach(t=>t.classList.toggle('on',t.dataset.t===tab));
-  const titles={inv:'INVENTORY',wpn:'WEAPONS',skills:'SKILLS',log:'LOG'};
+  const titles={inv:'INVENTORY',wpn:'WEAPONS',skills:'SKILLS',bank:'BANK',log:'LOG'};
   document.getElementById('spTitle').textContent=titles[tab]||'';
   document.getElementById('sidePanel').classList.add('open');
   renderPanel();
@@ -226,7 +227,46 @@ function renderPanel(){
   if(activeTab==='inv')renderInv();
   else if(activeTab==='wpn')renderWeapons();
   else if(activeTab==='skills')renderSkills();
+  else if(activeTab==='bank')renderBank();
   else renderLog();
+}
+
+const BANK_X=5,BANK_Z=3;
+function renderBank(){
+  const b=document.getElementById('spBody');
+  if(!inSafeZone(player.x,player.z)){
+    b.innerHTML=`<div style="text-align:center;padding:30px 12px;font-family:'Cinzel',serif;font-size:8px;color:#555;letter-spacing:1px;line-height:2.2;">📦 BANK<br>Enter the safe zone<br>to access your stored items.</div>`;
+    return;
+  }
+  let h=`<div style="font-family:'Cinzel',serif;font-size:8px;color:#4499dd;letter-spacing:1px;padding:4px 0 8px;border-bottom:1px solid rgba(60,140,220,.2);margin-bottom:6px;">📦 BANK STORAGE <span style="color:#555;font-size:6px;">(safe on death · tap to withdraw)</span></div>`;
+  h+=`<div class="invgrid">`;
+  for(let i=0;i<28;i++){
+    const s=storageSlots[i];
+    if(s){const d=ITEM_DEFS[s.id];h+=`<div class="invslot has-item" style="border-color:rgba(60,140,220,.5)" data-bwith="${i}"><span class="ico">${d.icon}</span>${s.qty>1?`<span class="qty">${s.qty}</span>`:''}<span class="iname">${d.name.slice(0,6)}</span></div>`;}
+    else h+=`<div class="invslot"></div>`;
+  }
+  h+=`</div><div style="font-family:'Cinzel',serif;font-size:8px;color:#aaa;letter-spacing:1px;padding:8px 0 6px;border-top:1px solid rgba(160,120,40,.15);margin-top:8px;">🎒 YOUR PACK <span style="color:#555;font-size:6px;">(tap to deposit)</span></div><div class="invgrid">`;
+  let any=false;
+  for(let i=0;i<28;i++){
+    const s=inventory[i];
+    if(s){any=true;const d=ITEM_DEFS[s.id];h+=`<div class="invslot has-item" data-bdep="${i}"><span class="ico">${d.icon}</span>${s.qty>1?`<span class="qty">${s.qty}</span>`:''}<span class="iname">${d.name.slice(0,6)}</span></div>`;}
+    else h+=`<div class="invslot"></div>`;
+  }
+  if(!any)h+=`<div style="grid-column:1/-1;text-align:center;color:#555;font-size:7px;padding:10px;font-family:'Cinzel',serif;">Pack is empty</div>`;
+  h+=`</div>`;
+  b.innerHTML=h;
+  b.querySelectorAll('[data-bwith]').forEach(el=>el.addEventListener('click',()=>{
+    const i=parseInt(el.dataset.bwith);const s=storageSlots[i];if(!s)return;
+    const fi=inventory.findIndex(x=>!x);if(fi<0){showNotif('INVENTORY FULL!');return;}
+    inventory[fi]=s;storageSlots[i]=null;saveGame();
+    addLog(`Withdrew ${ITEM_DEFS[s.id].icon} ${ITEM_DEFS[s.id].name}.`,'i');renderBank();
+  }));
+  b.querySelectorAll('[data-bdep]').forEach(el=>el.addEventListener('click',()=>{
+    const i=parseInt(el.dataset.bdep);const s=inventory[i];if(!s)return;
+    const fi=storageSlots.findIndex(x=>!x);if(fi<0){showNotif('BANK IS FULL!');return;}
+    storageSlots[fi]=s;inventory[i]=null;saveGame();
+    addLog(`Deposited ${ITEM_DEFS[s.id].icon} ${ITEM_DEFS[s.id].name}.`,'i');renderBank();
+  }));
 }
 function renderInv(){
   const b=document.getElementById('spBody');
@@ -1025,6 +1065,30 @@ const coinBangMesh = new THREE.Mesh(coinBangGeo, coinBangMat);
 coinBangMesh.position.set(ALDRIC_X, 3.7, ALDRIC_Z);
 scene.add(coinBangMesh);
 
+// ── BANK CHEST (safe zone storage) ──
+{
+  const bg = new THREE.Group();
+  // Chest body
+  const cBody = new THREE.Mesh(new THREE.BoxGeometry(1.2,.7,0.8), new THREE.MeshLambertMaterial({color:0x2a1a0a}));
+  cBody.position.y=.35; cBody.castShadow=true; bg.add(cBody);
+  // Chest lid
+  const cLid = new THREE.Mesh(new THREE.BoxGeometry(1.2,.35,0.8), new THREE.MeshLambertMaterial({color:0x3a2510}));
+  cLid.position.y=.875; cLid.castShadow=true; bg.add(cLid);
+  // Metal bands
+  const bMat = new THREE.MeshLambertMaterial({color:0x4499dd});
+  [-0.35,0.35].forEach(bz=>{
+    const band=new THREE.Mesh(new THREE.BoxGeometry(1.22,.08,.06),bMat);
+    band.position.set(0,.35,bz); bg.add(band);
+  });
+  const lock=new THREE.Mesh(new THREE.BoxGeometry(.2,.2,.12),bMat);
+  lock.position.set(0,.75,0.42); bg.add(lock);
+  // Glow
+  const bankLight=new THREE.PointLight(0x2266cc,.5,4);
+  bankLight.position.y=1.5; bg.add(bankLight);
+  bg.position.set(BANK_X,0,BANK_Z);
+  scene.add(bg);
+}
+
 // ── MERCHANT DIALOGUE ──
 let shopTab = 'buy';
 let merchantOpen = false;
@@ -1095,6 +1159,15 @@ function renderShop(){
   h += `<button class="dlg-btn close-btn" id="shopClose" style="margin-top:12px">✕ Leave</button>`;
   document.getElementById('dlgText').innerHTML = '';
   document.getElementById('dlgOptions').innerHTML = h;
+
+  // JS touch scroll for shop list (CSS touch-action override is blocked by parent * selector)
+  requestAnimationFrame(()=>{
+    const sl=document.querySelector('.shop-list');
+    if(!sl)return;
+    let sy=0,st=0;
+    sl.addEventListener('touchstart',e=>{sy=e.touches[0].clientY;st=sl.scrollTop;e.stopPropagation();},{passive:true});
+    sl.addEventListener('touchmove',e=>{sl.scrollTop=st+(sy-e.touches[0].clientY);e.stopPropagation();},{passive:true});
+  });
 
   // Tab listeners
   document.getElementById('stBuy').addEventListener('click',()=>{shopTab='buy';renderShop();});
@@ -1339,46 +1412,99 @@ function updateRingAtks(dt){
 }
 
 function makeEnemy(x,z,forceTier){
-  // Determine tier from distance unless overridden
   const dist=Math.hypot(x,z);
   const tier = forceTier || (dist<40 ? 1 : dist<90 ? 2 : dist<150 ? 3 : 4);
+  const pattern = pickPattern(tier);
   const g=new THREE.Group();
   const sc=0.85+tier*.18;
-  const body=new THREE.Mesh(new THREE.SphereGeometry(.78*sc,8,6),M.enemy.clone());
+
+  // Pattern-specific colour palette
+  let bodyCol,eyeCol,eyeEmit,glowCol,cloakCol;
+  switch(pattern){
+    case 'charge':
+      bodyCol=0x3a1800;eyeCol=0xff8800;eyeEmit=0xcc5500;glowCol=0x993300;cloakCol=0x2a1000;break;
+    case 'orbit':
+      bodyCol=0x051a38;eyeCol=0x00ccff;eyeEmit=0x0088cc;glowCol=0x003388;cloakCol=0x031228;break;
+    case 'summon_ring':
+      bodyCol=0x051a0d;eyeCol=0x00ff88;eyeEmit=0x00cc66;glowCol=0x004422;cloakCol=0x031208;break;
+    default:
+      bodyCol=0x441020;eyeCol=0xff4400;eyeEmit=0xcc2200;glowCol=0x550022;cloakCol=0x330818;
+  }
+  const bodyMat  = new THREE.MeshLambertMaterial({color:bodyCol});
+  const eyeMat   = new THREE.MeshLambertMaterial({color:eyeCol,emissive:eyeEmit,emissiveIntensity:1.2});
+  const cloakMat = new THREE.MeshLambertMaterial({color:cloakCol});
+
+  const body=new THREE.Mesh(new THREE.SphereGeometry(.78*sc,8,6),bodyMat);
   body.position.y=.9*sc;body.castShadow=true;g.add(body);
-  // Horns
-  [-1,1].forEach(s=>{
-    const horn=new THREE.Mesh(new THREE.ConeGeometry(.12*sc,.5*sc,4),M.stone);
-    horn.position.set(s*.35*sc,1.6*sc,0);horn.rotation.z=s*-.5;horn.castShadow=true;g.add(horn);
-  });
+
+  if(pattern==='charge'){
+    // Long forward-swept horns
+    [-1,1].forEach(s=>{
+      const horn=new THREE.Mesh(new THREE.ConeGeometry(.1*sc,.72*sc,4),M.stone);
+      horn.position.set(s*.22*sc,1.55*sc,.28*sc);horn.rotation.x=0.65;horn.rotation.z=s*-.18;
+      horn.castShadow=true;g.add(horn);
+    });
+    // Orange aura ring around torso
+    const rg=new THREE.TorusGeometry(.88*sc,.055,6,18);
+    const rm=new THREE.MeshBasicMaterial({color:0xff6600,transparent:true,opacity:.55});
+    g.add(new THREE.Mesh(rg,rm)).position||(g.children[g.children.length-1].position.y=.9*sc,g.children[g.children.length-1].rotation.x=Math.PI/2);
+  } else if(pattern==='orbit'){
+    // Curling horns
+    [-1,1].forEach(s=>{
+      const horn=new THREE.Mesh(new THREE.ConeGeometry(.13*sc,.65*sc,4),M.stone);
+      horn.position.set(s*.38*sc,1.72*sc,0);horn.rotation.z=s*-.82;horn.castShadow=true;g.add(horn);
+    });
+    // Cyan orbit ring (stored for animation)
+    const rg=new THREE.TorusGeometry(1.08*sc,.06,6,20);
+    const rm=new THREE.MeshBasicMaterial({color:0x00ccff,transparent:true,opacity:.6});
+    const ring=new THREE.Mesh(rg,rm);ring.position.y=.9*sc;g.add(ring);
+    g.userData.orbitRing=ring;
+  } else if(pattern==='summon_ring'){
+    // Crown of 6 spikes
+    for(let i=0;i<6;i++){
+      const a=(i/6)*Math.PI*2;
+      const spike=new THREE.Mesh(new THREE.ConeGeometry(.08*sc,.52*sc,4),M.stone);
+      spike.position.set(Math.sin(a)*.44*sc,1.65*sc,Math.cos(a)*.44*sc);
+      spike.rotation.z=Math.sin(a)*.48;spike.rotation.x=Math.cos(a)*.48;
+      spike.castShadow=true;g.add(spike);
+    }
+    // Green hexagon ring at crown level
+    const rg=new THREE.TorusGeometry(.9*sc,.055,6,6);
+    const rm=new THREE.MeshBasicMaterial({color:0x00ff88,transparent:true,opacity:.5});
+    const ring=new THREE.Mesh(rg,rm);ring.position.y=1.65*sc;g.add(ring);
+  } else {
+    // Default slam: classic two horns
+    [-1,1].forEach(s=>{
+      const horn=new THREE.Mesh(new THREE.ConeGeometry(.12*sc,.5*sc,4),M.stone);
+      horn.position.set(s*.35*sc,1.6*sc,0);horn.rotation.z=s*-.5;horn.castShadow=true;g.add(horn);
+    });
+  }
+
   // Glowing eyes
   [-1,1].forEach(s=>{
-    const eye=new THREE.Mesh(new THREE.SphereGeometry(.15*sc,5,4),M.enemyEye);
+    const eye=new THREE.Mesh(new THREE.SphereGeometry(.15*sc,5,4),eyeMat);
     eye.position.set(s*.28*sc,1.05*sc,.72*sc);g.add(eye);
   });
   // Cloak
-  const cloak=new THREE.Mesh(new THREE.ConeGeometry(.9*sc,1.4*sc,6),M.enemy);
+  const cloak=new THREE.Mesh(new THREE.ConeGeometry(.9*sc,1.4*sc,6),cloakMat);
   cloak.position.y=.3*sc;g.add(cloak);
-  // HP bar (background + foreground planes)
+  // HP bar
   const hpBg=new THREE.Mesh(new THREE.PlaneGeometry(1.5*sc,.16),new THREE.MeshBasicMaterial({color:0x330000,side:THREE.DoubleSide}));
   hpBg.position.y=2.3*sc;hpBg.rotation.x=-Math.PI*.18;g.add(hpBg);
   const hpFg=new THREE.Mesh(new THREE.PlaneGeometry(1.5*sc,.16),new THREE.MeshBasicMaterial({color:0xcc1111,side:THREE.DoubleSide}));
   hpFg.position.set(0,2.3*sc,.01);hpFg.rotation.x=-Math.PI*.18;g.add(hpFg);
-  // Tier-coloured glow
-  const glowCol=tier===1?0x440022:tier===2?0x881133:0xcc2244;
+  // Point light
   const glow=new THREE.PointLight(glowCol,.6,5);glow.position.y=sc;g.add(glow);
 
-  // HP scales with tier (tier1=3-4 hits to kill, tier2=6-8, tier3=12-16)
   const maxHp=tier===1?Math.floor(rnd(6,10)):tier===2?Math.floor(rnd(14,22)):tier===3?Math.floor(rnd(28,40)):Math.floor(rnd(60,90));
   const spd=tier===1?rnd(.25,.45):tier===2?rnd(.35,.55):tier===3?rnd(.4,.65):rnd(.5,.7);
-  const pattern=pickPattern(tier);
 
   g.position.set(x,0,z);
   g.userData={hp:maxHp,maxHp,speed:spd,aggroRange:rnd(14,26),
     vx:0,vz:0,
-    attackCd: 2 + Math.random() * 4,
+    attackCd:2+Math.random()*4,
     dead:false,tier,hpFg,hpBg,sc,
-    attackDmg:tier, pattern,
+    attackDmg:tier,pattern,
     name:NPC_NAMES[Math.floor(Math.random()*NPC_NAMES.length)]+' (T'+tier+')'};
   scene.add(g);enemies.push(g);
 }
@@ -1964,6 +2090,7 @@ function updateSlams(dt){
 
 function update(){
   const dt=Math.min(clock.getDelta(),.05);
+  if(playerDead) return;
   const now=clock.elapsedTime;
   hitsplatsThisFrame = 0;
 
@@ -2021,6 +2148,7 @@ function update(){
     spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),1,'hs-h');
     lastRegen=now;
   }
+  if(player.hp<=0&&!playerDead) triggerDeath();
 
   // Player mesh
   const gY=getGroundY(player.x,player.z);
@@ -2311,6 +2439,23 @@ function update(){
     }
   } else { talkElM.style.display = 'none'; }
 
+  // ── ORBIT RING ANIMATION ──
+  for(const e of enemies){
+    if(!e.userData.dead&&e.userData.orbitRing) e.userData.orbitRing.rotation.y+=dt*2.2;
+  }
+
+  // ── BANK CHEST PROMPT ──
+  const bankDist=Math.hypot(player.x-BANK_X,player.z-BANK_Z);
+  const bankEl=document.getElementById('talkPromptBank');
+  if(!dialogueOpen&&bankDist<6){
+    const bPos=new THREE.Vector3(BANK_X,2.2,BANK_Z);bPos.project(camera);
+    if(bPos.z<1){
+      bankEl.style.display='block';
+      bankEl.style.left=((bPos.x*.5+.5)*innerWidth)+'px';
+      bankEl.style.top=((-.5*bPos.y+.5)*innerHeight)+'px';
+    }
+  } else { bankEl.style.display='none'; }
+
   // HUD
   document.getElementById('hpF').style.width=(player.hp/player.maxHp*100)+'%';
   document.getElementById('stF').style.width=(player.prayer/player.maxPrayer*100)+'%';
@@ -2322,6 +2467,40 @@ function update(){
   drawMinimap();
 }
 
+// ── DEATH / RESPAWN ──
+let playerDead=false;
+
+function triggerDeath(){
+  playerDead=true;
+  player.inCombat=false;
+  document.getElementById('deathScreen').classList.add('show');
+  addLog('You have died. All items lost.','d');
+}
+
+function respawnPlayer(){
+  // Wipe inventory (storage is kept)
+  for(let i=0;i<28;i++) inventory[i]=null;
+  equippedWeapon=WEAPONS.ironDagger;
+  updateWeaponMesh();updateWeaponHUD();
+  // Teleport to safe zone centre
+  player.x=SAFE_X;player.z=SAFE_Z;player.vx=0;player.vz=0;player.y=0;player.vy=0;
+  player.hp=player.maxHp;player.prayer=player.maxPrayer;player.runEnergy=100;
+  player.attackCd=0;player.inCombat=false;
+  playerDead=false;
+  saveGame();
+  refreshHUD();
+  if(panelOpen)renderPanel();
+  document.getElementById('deathScreen').classList.remove('show');
+  addLog('Respawned at safe zone.','h');
+  showNotif('RESPAWNED');
+}
+document.getElementById('deathRespawn').addEventListener('click',respawnPlayer);
+document.getElementById('deathRespawn').addEventListener('touchend',e=>{e.preventDefault();respawnPlayer();},{passive:false});
+
+// ── BANK PROMPT HANDLER ──
+document.getElementById('talkPromptBank').addEventListener('click',()=>openPanel('bank'));
+document.getElementById('talkPromptBank').addEventListener('touchend',e=>{e.preventDefault();openPanel('bank');},{passive:false});
+
 function loop(){requestAnimationFrame(loop);update();renderer.render(scene,camera);}
 
 // ── SAVE / LOAD ──
@@ -2332,6 +2511,7 @@ function saveGame(){
     const data={
       skills:{},
       inventory:JSON.parse(JSON.stringify(inventory)),
+      storageSlots:JSON.parse(JSON.stringify(storageSlots)),
       equippedWeaponId:equippedWeapon.id,
       score:player.score,
     };
@@ -2352,6 +2532,9 @@ function loadGame(){
     }
     if(Array.isArray(data.inventory)){
       for(let i=0;i<28;i++) inventory[i]=data.inventory[i]||null;
+    }
+    if(Array.isArray(data.storageSlots)){
+      for(let i=0;i<28;i++) storageSlots[i]=data.storageSlots[i]||null;
     }
     if(data.equippedWeaponId&&WEAPONS[data.equippedWeaponId]){
       equippedWeapon=WEAPONS[data.equippedWeaponId];

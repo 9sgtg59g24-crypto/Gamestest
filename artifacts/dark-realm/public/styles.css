@@ -131,6 +131,21 @@ body{background:#000;overflow:hidden;width:100vw;height:100vh;}
 #dlgClose{position:absolute;top:10px;right:12px;font-size:16px;color:#555;cursor:pointer;line-height:1;}
 #safeLabel{position:fixed;bottom:200px;left:50%;transform:translateX(-50%);font-family:'Cinzel Decorative',serif;font-size:11px;color:#00ff88;letter-spacing:3px;text-shadow:0 0 16px #00ff88,0 0 32px #00ff8866;pointer-events:none;z-index:15;opacity:0;transition:opacity .5s;}
 
+/* ── DEATH SCREEN ── */
+#deathScreen{position:fixed;inset:0;background:rgba(0,0,0,0);z-index:90;display:flex;align-items:center;justify-content:center;pointer-events:none;transition:background .8s;}
+#deathScreen.show{background:rgba(0,0,0,.88);pointer-events:all;}
+#deathContent{text-align:center;opacity:0;transform:scale(.88);transition:all .5s .25s;pointer-events:none;}
+#deathScreen.show #deathContent{opacity:1;transform:scale(1);pointer-events:all;}
+#deathTitle{font-family:'Cinzel Decorative',serif;font-size:28px;color:#cc2222;text-shadow:0 0 40px #cc2222,0 0 80px #cc222244;letter-spacing:4px;margin-bottom:14px;}
+#deathSub{font-family:'Cinzel',serif;font-size:8px;color:#777;letter-spacing:1px;line-height:2.2;margin-bottom:28px;}
+#deathRespawn{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;padding:12px 28px;border:1px solid rgba(200,60,60,.55);background:rgba(180,40,40,.12);color:#dd5555;border-radius:6px;cursor:pointer;transition:all .15s;}
+#deathRespawn:hover{background:rgba(200,60,60,.25);}
+#deathRespawn:active{transform:scale(.95);}
+
+/* ── BANK PROMPT ── */
+#talkPromptBank{position:fixed;z-index:20;transform:translate(-50%,-100%);background:rgba(6,4,2,.92);border:1px solid rgba(60,140,220,.5);border-radius:6px;padding:5px 12px;font-family:'Cinzel',serif;font-size:8px;color:#4499dd;letter-spacing:1px;pointer-events:all;cursor:pointer;white-space:nowrap;display:none;box-shadow:0 0 12px rgba(40,100,200,.25);}
+#talkPromptBank:active{transform:translate(-50%,-100%) scale(.94);}
+
 /* ── SHOP STYLES ── */
 .shop-gold{font-family:'Cinzel',serif;font-size:10px;color:#ddaa22;letter-spacing:1px;padding:6px 0 10px;border-bottom:1px solid rgba(160,120,40,.2);margin-bottom:8px;}
 .shop-tabs{display:flex;gap:6px;margin-bottom:10px;}
