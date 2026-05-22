@@ -206,6 +206,9 @@ document.getElementById('skBtn').addEventListener('touchend',e=>{e.preventDefaul
 document.getElementById('spX').addEventListener('touchend',e=>{e.preventDefault();closePanel();},{passive:false});
 document.querySelectorAll('.sptab').forEach(t=>{
   t.addEventListener('click',()=>{
+    if(t.dataset.t==='bank'&&Math.hypot(player.x-BANK_X,player.z-BANK_Z)>=8){
+      showNotif('YOU MUST BE NEAR THE BANK');return;
+    }
     activeTab=t.dataset.t;
     document.querySelectorAll('.sptab').forEach(x=>x.classList.remove('on'));
     t.classList.add('on');
@@ -236,8 +239,8 @@ function renderPanel(){
 const BANK_X=5,BANK_Z=3;
 function renderBank(){
   const b=document.getElementById('spBody');
-  if(!inSafeZone(player.x,player.z)){
-    b.innerHTML=`<div style="text-align:center;padding:30px 12px;font-family:'Cinzel',serif;font-size:8px;color:#555;letter-spacing:1px;line-height:2.2;">📦 BANK<br>Enter the safe zone<br>to access your stored items.</div>`;
+  if(Math.hypot(player.x-BANK_X,player.z-BANK_Z)>=8){
+    b.innerHTML=`<div style="text-align:center;padding:30px 12px;font-family:'Cinzel',serif;font-size:8px;color:#555;letter-spacing:1px;line-height:2.2;">📦 BANK<br>You must be near the bank chest<br>to access your stored items.</div>`;
     return;
   }
   let h=`<div style="font-family:'Cinzel',serif;font-size:8px;color:#4499dd;letter-spacing:1px;padding:4px 0 8px;border-bottom:1px solid rgba(60,140,220,.2);margin-bottom:6px;">📦 BANK STORAGE <span style="color:#555;font-size:6px;">(safe on death · tap to withdraw)</span></div>`;
