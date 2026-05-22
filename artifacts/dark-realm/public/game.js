@@ -274,8 +274,10 @@ function renderWeapons(){
         showNotif(`Need Atk ${w.reqAtk} / Str ${w.reqStr}`);return;
       }
       equippedWeapon=w;
+      updateWeaponMesh();
       updateWeaponHUD();
       renderWeapons();
+      saveGame();
       showNotif(`${w.icon} ${w.name} equipped!`);
     });
   });
