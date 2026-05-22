@@ -2473,6 +2473,9 @@ let playerDead=false;
 function triggerDeath(){
   playerDead=true;
   player.inCombat=false;
+  closeDialogue();
+  closeMerchant();
+  closePanel();
   document.getElementById('deathScreen').classList.add('show');
   addLog('You have died. All items lost.','d');
 }
