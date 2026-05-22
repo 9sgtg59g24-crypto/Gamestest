@@ -411,8 +411,8 @@ renderer.setSize(innerWidth,innerHeight);
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x050408);
-const fogObj=new THREE.Fog(0x050408,55,230);
+scene.background=new THREE.Color(0x07091a);
+const fogObj=new THREE.Fog(0x07091a,60,260);
 scene.fog=fogObj;
 const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,400);
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});
@@ -463,10 +463,10 @@ for(let i=0;i<gP.count;i++){
   if(Math.abs(x)>12||Math.abs(z)>12) gP.setZ(i,Math.sin(x*.038)*Math.cos(z*.038)*2.8+(Math.random()-.5)*.4);
 }
 gGeo.computeVertexNormals();
-const gMat=new THREE.MeshLambertMaterial({color:0x1a1410});
+const gMat=new THREE.MeshLambertMaterial({color:0x1a1c14});
 const gMesh=new THREE.Mesh(gGeo,gMat);
 gMesh.rotation.x=-Math.PI/2;gMesh.receiveShadow=true;scene.add(gMesh);
-const grid=new THREE.GridHelper(800,60,0x181410,0x181410);grid.position.y=0.02;scene.add(grid);
+const grid=new THREE.GridHelper(800,60,0x1e1c14,0x1e1c14);grid.position.y=0.02;scene.add(grid);
 function getGroundY(x,z){
   if(Math.abs(x)<12&&Math.abs(z)<12)return 0;
   return Math.sin(x*.038)*Math.cos(z*.038)*2.8;
@@ -476,22 +476,25 @@ const WORLD=240;
 
 // ── Materials ──
 const M={
-  stone:    new THREE.MeshLambertMaterial({color:0x3a3540}),
-  darkSt:   new THREE.MeshLambertMaterial({color:0x201c28}),
-  wood:     new THREE.MeshLambertMaterial({color:0x2a1a0c}),
-  roof:     new THREE.MeshLambertMaterial({color:0x3a1408}),
-  thatch:   new THREE.MeshLambertMaterial({color:0x4a3010}),
-  planks:   new THREE.MeshLambertMaterial({color:0x3a2410}),
+  stone:    new THREE.MeshLambertMaterial({color:0x4a4858}),
+  darkSt:   new THREE.MeshLambertMaterial({color:0x282038}),
+  wood:     new THREE.MeshLambertMaterial({color:0x3a2214}),
+  roof:     new THREE.MeshLambertMaterial({color:0x44180a}),
+  thatch:   new THREE.MeshLambertMaterial({color:0x523614}),
+  planks:   new THREE.MeshLambertMaterial({color:0x442c18}),
   enemy:    new THREE.MeshLambertMaterial({color:0x441020}),
   enemyEye: new THREE.MeshLambertMaterial({color:0xff4400,emissive:0xcc2200,emissiveIntensity:1.2}),
   flame:    new THREE.MeshLambertMaterial({color:0xff6600,emissive:0xff4400,emissiveIntensity:1.5}),
-  loot:     new THREE.MeshLambertMaterial({color:0xddaa00,emissive:0xaa7700,emissiveIntensity:.8}),
-  player:   new THREE.MeshLambertMaterial({color:0x2a3a55}),
-  playerH:  new THREE.MeshLambertMaterial({color:0xc8a070}),
-  playerL:  new THREE.MeshLambertMaterial({color:0x1a2a3a}),
-  crystal:  new THREE.MeshLambertMaterial({color:0x4422cc,emissive:0x2211aa,emissiveIntensity:.8}),
-  wpnBlade: new THREE.MeshLambertMaterial({color:0xaabbcc,emissive:0x334455,emissiveIntensity:.3}),
-  wpnHilt:  new THREE.MeshLambertMaterial({color:0x6b4a0a}),
+  loot:     new THREE.MeshLambertMaterial({color:0xffcc22,emissive:0xcc8800,emissiveIntensity:1.0}),
+  player:   new THREE.MeshLambertMaterial({color:0x3a60b0}),
+  playerH:  new THREE.MeshLambertMaterial({color:0xe0b880}),
+  playerL:  new THREE.MeshLambertMaterial({color:0x243268}),
+  cape:     new THREE.MeshLambertMaterial({color:0x7a1010}),
+  pad:      new THREE.MeshLambertMaterial({color:0x4a70c0}),
+  boot:     new THREE.MeshLambertMaterial({color:0x18121e}),
+  crystal:  new THREE.MeshLambertMaterial({color:0x5533ee,emissive:0x3322bb,emissiveIntensity:.9}),
+  wpnBlade: new THREE.MeshLambertMaterial({color:0xc8d8e8,emissive:0x445566,emissiveIntensity:.4}),
+  wpnHilt:  new THREE.MeshLambertMaterial({color:0x7a5510}),
 };
 
 // ── BUILDING FUNCTIONS ──
@@ -714,6 +717,36 @@ function makeDeadTree(x,z){
   }
   g.position.set(x,0,z);scene.add(g);return g;
 }
+
+// Dark fantasy leafy tree (RS-inspired)
+function makeRSTree(x,z){
+  const g=new THREE.Group();
+  const h=rnd(4,8);
+  const trunkMat=new THREE.MeshLambertMaterial({color:0x1e1008});
+  const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.24,.44,h,7),trunkMat);
+  trunk.position.y=h/2;trunk.castShadow=true;g.add(trunk);
+  // Twisted branches feeding into canopy
+  for(let i=0;i<3;i++){
+    const a=i/3*Math.PI*2+.4,bl=rnd(1.2,2.4),bh=h*rnd(.6,.85);
+    const br=new THREE.Mesh(new THREE.CylinderGeometry(.05,.1,bl,4),trunkMat);
+    br.position.set(Math.cos(a)*bl*.3,bh,Math.sin(a)*bl*.3);
+    br.rotation.z=Math.PI/2-Math.abs(Math.cos(a))*.5;br.rotation.y=a;
+    br.castShadow=true;g.add(br);
+  }
+  // Layered canopy — dark purple-green spheres
+  const c1=new THREE.MeshLambertMaterial({color:0x162210});
+  const c2=new THREE.MeshLambertMaterial({color:0x1a1a28});
+  [[0,h+.6,0,1.7],[-.75,h-.2,.3,1.15],[.65,h-.4,-.5,1.05],[.1,h+1.5,0,1.0]].forEach(([lx,ly,lz,r],i)=>{
+    const leaf=new THREE.Mesh(new THREE.SphereGeometry(r,6,5),i%2===0?c1:c2);
+    leaf.position.set(lx,ly,lz);leaf.castShadow=true;g.add(leaf);
+  });
+  // Rare wisp glow
+  if(Math.random()<.35){
+    const wl=new THREE.PointLight(0x003322,.4,5);
+    wl.position.set(0,h+1.2,0);g.add(wl);
+  }
+  g.position.set(x,0,z);scene.add(g);return g;
+}
 function makeRuin(x,z){
   const g=new THREE.Group();
   const cols=Math.floor(rnd(2,5));
@@ -799,10 +832,10 @@ for(let i=0;i<22;i++){
   torchPosts.push(makeTorchPost(Math.cos(a)*r,Math.sin(a)*r));
 }
 // Environment scatter
-for(let i=0;i<50;i++){
+for(let i=0;i<55;i++){
   const x=rnd(-WORLD,WORLD),z=rnd(-WORLD,WORLD);
   if(Math.hypot(x,z)<18){i--;continue;}
-  makeDeadTree(x,z);
+  Math.random()<.45 ? makeRSTree(x,z) : makeDeadTree(x,z);
 }
 for(let i=0;i<18;i++){
   const x=rnd(-WORLD,WORLD),z=rnd(-WORLD,WORLD);
@@ -1584,6 +1617,22 @@ wpnGroup.position.set(.5,1.18,0);
 PG.add(wpnGroup);
 const sdisk=new THREE.Mesh(new THREE.CircleGeometry(.5,10),new THREE.MeshBasicMaterial({color:0,transparent:true,opacity:.25}));
 sdisk.rotation.x=-Math.PI/2;sdisk.position.y=.01;PG.add(sdisk);
+// Shoulder pads
+const padL=new THREE.Mesh(new THREE.BoxGeometry(.28,.18,.42),M.pad);
+padL.position.set(-.48,1.65,0);padL.castShadow=true;PG.add(padL);
+const padR=new THREE.Mesh(new THREE.BoxGeometry(.28,.18,.42),M.pad);
+padR.position.set(.48,1.65,0);padR.castShadow=true;PG.add(padR);
+// Cape
+const cape=new THREE.Mesh(new THREE.BoxGeometry(.60,1.15,.06),M.cape);
+cape.position.set(0,.82,-.27);cape.castShadow=true;PG.add(cape);
+// Belt buckle detail
+const belt=new THREE.Mesh(new THREE.BoxGeometry(.72,.1,.52),M.pad);
+belt.position.set(0,.72,0);PG.add(belt);
+// Boot guards
+const bootL=new THREE.Mesh(new THREE.BoxGeometry(.33,.2,.33),M.boot);
+bootL.position.set(-.2,-.05,0);bootL.castShadow=true;PG.add(bootL);
+const bootR=new THREE.Mesh(new THREE.BoxGeometry(.33,.2,.33),M.boot);
+bootR.position.set(.2,-.05,0);bootR.castShadow=true;PG.add(bootR);
 scene.add(PG);
 
 // Update weapon mesh shape based on equipped weapon
@@ -2182,10 +2231,15 @@ function update(){
   PG.position.set(player.x,gY+player.y,player.z);
   PG.rotation.y=player.angle;
   const moving=Math.hypot(player.vx,player.vz)>.05;
-  legL.position.y=.34+(moving?Math.sin(legPhase)*.26:0);
-  legR.position.y=.34+(moving?Math.sin(legPhase+Math.PI)*.26:0);
-  armL.rotation.x=(moving?Math.sin(legPhase)*.4:0);
-  armR.rotation.x=-(moving?Math.sin(legPhase)*.4:0);
+  legL.position.y=.34+(moving?Math.sin(legPhase)*.28:0);
+  legR.position.y=.34+(moving?Math.sin(legPhase+Math.PI)*.28:0);
+  legL.rotation.x=moving?Math.sin(legPhase)*.42:0;
+  legR.rotation.x=moving?Math.sin(legPhase+Math.PI)*.42:0;
+  armL.rotation.x=(moving?Math.sin(legPhase)*.44:0);
+  armR.rotation.x=-(moving?Math.sin(legPhase)*.44:0);
+  // Head bob
+  phead.position.y=2.08+(moving?Math.sin(legPhase*2)*.025:0);
+  visor.position.y=2.22+(moving?Math.sin(legPhase*2)*.025:0);
 
   // Weapon attack animation
   if(atkAnim.active){
@@ -2279,9 +2333,11 @@ function update(){
 
   // Ground loot — animate + label
   for(const l of groundLoot){if(l.group.userData.picked)continue;
-    l.group.userData.phase+=dt*2;
-    l.group.children[0].position.y=.35+Math.sin(l.group.userData.phase)*.1;
-    l.group.children[0].rotation.y+=dt;
+    l.group.userData.phase+=dt*1.8;
+    l.group.children[0].position.y=.32+Math.sin(l.group.userData.phase)*.2;
+    l.group.children[0].rotation.y+=dt*2.5;
+    l.group.children[0].rotation.x=Math.sin(l.group.userData.phase*.7)*.2;
+    if(l.group.children[1]) l.group.children[1].intensity=0.9+Math.sin(l.group.userData.phase*1.5)*.5;
     const dist=Math.hypot(l.x-player.x,l.z-player.z);
     if(dist<12){
       const wp=new THREE.Vector3(l.x,getGroundY(l.x,l.z)+.9,l.z);
@@ -2381,7 +2437,7 @@ function update(){
     e.userData.vx *= .86; e.userData.vz *= .86;
     e.position.x += e.userData.vx*dt*28;
     e.position.z += e.userData.vz*dt*28;
-    e.position.y = getGroundY(e.position.x, e.position.z);
+    e.position.y = getGroundY(e.position.x, e.position.z) + Math.sin(now*1.1+e.userData.attackCd*2.2)*.07;
 
     if(dist < 30) e.rotation.y = Math.atan2(dx, dz);
 
