@@ -215,6 +215,8 @@ document.querySelectorAll('.sptab').forEach(t=>{
   });
 });
 function openPanel(tab){
+  // Auto-open bank tab when near the chest
+  if(tab==='inv' && Math.hypot(player.x-BANK_X,player.z-BANK_Z)<8) tab='bank';
   panelOpen=true;activeTab=tab;
   document.querySelectorAll('.sptab').forEach(t=>t.classList.toggle('on',t.dataset.t===tab));
   const titles={inv:'INVENTORY',wpn:'WEAPONS',skills:'SKILLS',bank:'BANK',log:'LOG'};
@@ -270,8 +272,11 @@ function renderBank(){
 }
 function renderInv(){
   const b=document.getElementById('spBody');
+  const nearBank=Math.hypot(player.x-BANK_X,player.z-BANK_Z)<8;
   let wt=0;
-  let h='<div class="invgrid">';
+  let h='';
+  if(nearBank) h+=`<div style="font-family:'Cinzel',serif;font-size:7px;color:#4499dd;letter-spacing:1px;padding:4px 0 8px;text-align:center;border-bottom:1px solid rgba(60,140,220,.2);margin-bottom:6px;">📦 Double-tap any item to deposit to bank</div>`;
+  h+='<div class="invgrid">';
   for(let i=0;i<28;i++){
     const s=inventory[i];
     if(s){const d=ITEM_DEFS[s.id];wt+=d.wt*s.qty;
@@ -280,10 +285,29 @@ function renderInv(){
   }
   h+=`</div><div class="inv-weight">WEIGHT: ${wt.toFixed(1)} kg</div>`;
   b.innerHTML=h;
+  let lastTap={slot:-1,time:0};
   b.querySelectorAll('.invslot.has-item').forEach(el=>{
     el.addEventListener('pointerenter',ev=>showTooltip(el.dataset.id,ev));
     el.addEventListener('pointerleave',hideTooltip);
-    el.addEventListener('click',()=>useItem(el.dataset.id,parseInt(el.dataset.slot)));
+    el.addEventListener('click',()=>{
+      const slot=parseInt(el.dataset.slot);
+      const now=Date.now();
+      if(nearBank&&lastTap.slot===slot&&now-lastTap.time<450){
+        // Double-tap: deposit to bank
+        const s=inventory[slot];if(!s)return;
+        const fi=storageSlots.findIndex(x=>!x);
+        if(fi<0){showNotif('BANK IS FULL!');return;}
+        storageSlots[fi]=s;inventory[slot]=null;
+        saveGame();
+        showNotif(`${ITEM_DEFS[s.id].icon} Deposited`);
+        addLog(`Deposited ${ITEM_DEFS[s.id].icon} ${ITEM_DEFS[s.id].name}.`,'i');
+        lastTap={slot:-1,time:0};
+        renderInv();
+      } else {
+        lastTap={slot,time:now};
+        useItem(el.dataset.id,slot);
+      }
+    });
   });
 }
 function renderWeapons(){
