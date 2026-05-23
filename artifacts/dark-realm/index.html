@@ -5,8 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Dark Realm</title>
 <link rel="stylesheet" href="styles.css">
+<style>
+#loadScreen{position:fixed;inset:0;background:#07091a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;font-family:serif;color:#e8c060;text-align:center;padding:20px;}
+#loadTitle{font-size:28px;letter-spacing:4px;margin-bottom:8px;}
+#loadSub{font-size:11px;color:#a07828;letter-spacing:2px;margin-bottom:32px;}
+#loadSteps{font-size:11px;color:#777;line-height:2;text-align:left;}
+.lstep{color:#555;}.lstep.ok{color:#22aa22;}.lstep.fail{color:#ee2222;}
+#loadErr{margin-top:16px;font-size:10px;color:#ee4444;max-width:300px;line-height:1.6;display:none;}
+</style>
+<script>
+window.onerror=function(msg,src,line){
+  var el=document.getElementById('loadErr');
+  if(el){el.style.display='block';el.textContent='JS Error: '+msg+' (line '+line+')';}
+};
+function lstep(id,state){
+  var el=document.getElementById(id);
+  if(!el)return;
+  el.className='lstep '+(state||'');
+  el.textContent=el.dataset.label+(state==='ok'?' ✓':state==='fail'?' ✗':' …');
+}
+</script>
 </head>
 <body>
+<div id="loadScreen">
+  <div id="loadTitle">DARK REALM</div>
+  <div id="loadSub">LOADING</div>
+  <div id="loadSteps">
+    <div class="lstep" id="ls1" data-label="HTML ready">HTML ready …</div>
+    <div class="lstep" id="ls2" data-label="CSS loaded">CSS loaded …</div>
+    <div class="lstep" id="ls3" data-label="Three.js loaded">Three.js loaded …</div>
+    <div class="lstep" id="ls4" data-label="WebGL available">WebGL available …</div>
+    <div class="lstep" id="ls5" data-label="Scene initialised">Scene initialised …</div>
+  </div>
+  <div id="loadErr"></div>
+</div>
 <canvas id="c"></canvas>
 
 <div id="hud">
@@ -89,7 +121,9 @@
   </div>
 </div>
 
-<script src="three.min.js"></script>
+<script>lstep('ls1','ok');</script>
+<script>document.querySelector('link[rel=stylesheet]').addEventListener('load',function(){lstep('ls2','ok');});</script>
+<script src="three.min.js" onload="lstep('ls3','ok')" onerror="lstep('ls3','fail')"></script>
 <script src="game.js"></script>
 </body>
 </html>
