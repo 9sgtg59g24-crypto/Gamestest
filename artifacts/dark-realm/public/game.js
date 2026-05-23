@@ -417,9 +417,20 @@ function updateWeaponHUD(){
 // ═══════════════════════════════════════════════════════
 //  THREE.JS SCENE
 // ═══════════════════════════════════════════════════════
-const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+(function checkWebGL(){
+  const testCanvas=document.createElement('canvas');
+  const gl=testCanvas.getContext('webgl')||testCanvas.getContext('webgl2')||testCanvas.getContext('experimental-webgl');
+  if(!gl){
+    const overlay=document.createElement('div');
+    overlay.style.cssText='position:fixed;inset:0;background:#07091a;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;font-family:serif;color:#e8c060;text-align:center;padding:20px;';
+    overlay.innerHTML='<div style="font-size:22px;margin-bottom:12px;">⚠ WebGL Not Available</div><div style="font-size:13px;color:#aaa;max-width:320px;line-height:1.6;">Dark Realm requires WebGL to run.<br><br>Try opening this page in a different browser, or enable hardware acceleration in your browser settings.</div>';
+    document.body.appendChild(overlay);
+    throw new Error('WebGL not available');
+  }
+})();
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:false,powerPreference:'default',failIfMajorPerformanceCaveat:false,alpha:false});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.setSize(innerWidth,innerHeight);
+renderer.setSize(innerWidth||window.screen.width,innerHeight||window.screen.height);
 renderer.shadowMap.enabled=true;
 renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene();
