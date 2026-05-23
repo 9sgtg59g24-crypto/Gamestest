@@ -219,6 +219,7 @@ document.querySelectorAll('.sptab').forEach(t=>{
   });
 });
 function openPanel(tab){
+  closeDialogue(); closeMerchant(); closeTestShop();
   // Auto-open bank tab when near the chest
   if(tab==='inv' && Math.hypot(player.x-BANK_X,player.z-BANK_Z)<8) tab='bank';
   panelOpen=true;activeTab=tab;
@@ -1015,6 +1016,7 @@ const dlgTexts = {
 };
 
 function openDialogue(phase){
+  closePanel(); closeMerchant(); closeTestShop();
   elaraPhase = phase || 'main';
   dialogueOpen = true;
   document.getElementById('dialogueBox').classList.add('open');
@@ -1208,6 +1210,7 @@ let shopTab = 'buy';
 let merchantOpen = false;
 
 function openMerchant(){
+  closePanel(); closeDialogue(); closeTestShop();
   merchantOpen = true;
   dialogueOpen = true;
   document.getElementById('dlgAvatar').textContent = '🛒';
@@ -1332,6 +1335,7 @@ function getTestStock(){
 }
 
 function openTestShop(){
+  closePanel(); closeDialogue(); closeMerchant();
   testShopOpen = true;
   dialogueOpen = true;
   document.getElementById('dlgAvatar').textContent = '🧪';
