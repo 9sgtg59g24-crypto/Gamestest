@@ -2073,7 +2073,7 @@ function makeBoss(x, z){
   const skull = new THREE.Mesh(new THREE.BoxGeometry(0.58,0.54,0.56), darkMat);
   skull.position.y = 2.55; skull.castShadow = true; g.add(skull);
   // Jaw
-  g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.44,0.15,0.42), darkMat), {position:{x:0,y:2.26,z:0.04}}));
+  const jaw=new THREE.Mesh(new THREE.BoxGeometry(0.44,0.15,0.42), darkMat); jaw.position.set(0,2.26,0.04); g.add(jaw);
   // Forehead crack
   const fc = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.22,0.04), crackMat);
   fc.position.set(0.08,2.72,0.30); fc.rotation.z=0.28; g.add(fc);
