@@ -32,6 +32,7 @@ body{background:#000;overflow:hidden;width:100vw;height:100vh;}
 #lvlFlash.show{opacity:1;}
 .lvlMsg{font-family:'Cinzel Decorative',serif;font-size:16px;color:#e8c060;letter-spacing:3px;text-shadow:0 0 28px #e8c060,0 0 55px #e8c06066;text-align:center;line-height:1.7;}
 .loot-label{position:fixed;background:rgba(6,4,2,.92);border:1px solid rgba(160,120,40,.5);border-radius:4px;padding:3px 7px;font-family:'Cinzel',serif;font-size:7px;color:#e8c060;letter-spacing:1px;pointer-events:none;z-index:15;transform:translate(-50%,-100%);white-space:nowrap;}
+.enemy-label{position:fixed;font-family:'Cinzel',serif;font-size:7px;letter-spacing:1px;pointer-events:none;z-index:16;transform:translate(-50%,-100%);white-space:nowrap;text-align:center;text-shadow:0 0 8px rgba(0,0,0,1),0 1px 4px rgba(0,0,0,1);padding:1px 5px;border-radius:2px;background:rgba(0,0,0,.45);}
 .hitsplat{position:fixed;pointer-events:none;z-index:60;display:flex;align-items:center;justify-content:center;border-radius:50%;font-family:'Cinzel',serif;font-weight:700;border:2px solid rgba(0,0,0,.5);animation:hsAnim .9s ease-out forwards;box-shadow:0 2px 8px rgba(0,0,0,.7);}
 .hs-e{background:#1155cc;color:#fff;font-size:11px;width:30px;height:30px;border-color:#4488ff;}
 .hs-p{background:#cc1111;color:#fff;font-size:11px;width:32px;height:32px;border-color:#ff4444;}

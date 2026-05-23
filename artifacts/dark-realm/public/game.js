@@ -1710,12 +1710,18 @@ function makeEnemy(x,z,forceTier){
   const spd=tier===1?rnd(.25,.45):tier===2?rnd(.35,.55):tier===3?rnd(.4,.65):rnd(.5,.7);
 
   g.position.set(x,0,z);
+  const eName=NPC_NAMES[Math.floor(Math.random()*NPC_NAMES.length)]+' (T'+tier+')';
+  const tierCol=['','#cc4444','#dd7722','#4488ff','#aa44ff'][Math.min(tier,4)];
+  const eLabel=document.createElement('div');
+  eLabel.className='enemy-label';eLabel.textContent=eName;
+  eLabel.style.color=tierCol;eLabel.style.display='none';
+  document.body.appendChild(eLabel);
   g.userData={hp:maxHp,maxHp,speed:spd,aggroRange:rnd(14,26),
     vx:0,vz:0,
     attackCd:2+Math.random()*4,
     dead:false,tier,hpFg,hpBg,sc,
     attackDmg:tier,pattern,
-    name:NPC_NAMES[Math.floor(Math.random()*NPC_NAMES.length)]+' (T'+tier+')'};
+    name:eName,nameLabel:eLabel};
   scene.add(g);enemies.push(g);
 }
 
@@ -1896,6 +1902,11 @@ function makeNamedNPC(x,z,type){
   const glow=new THREE.PointLight(glowCol,.7,6);glow.position.y=1.2;g.add(glow);
 
   g.position.set(x,0,z);
+  const namedCol={skeleton:'#ddd5b8',mage:'#aa66ff',archer:'#88ff44'}[type]||'#e8c060';
+  const nLabel=document.createElement('div');
+  nLabel.className='enemy-label';nLabel.textContent=name;
+  nLabel.style.color=namedCol;nLabel.style.display='none';
+  document.body.appendChild(nLabel);
   g.userData={
     hp:maxHp,maxHp,speed:spd,aggroRange,
     vx:0,vz:0,
@@ -1903,6 +1914,7 @@ function makeNamedNPC(x,z,type){
     dead:false,tier,hpFg,hpBg,sc,
     attackDmg:tier,pattern,name,
     npcType:type,spawnX:x,spawnZ:z,
+    nameLabel:nLabel,
   };
   scene.add(g);enemies.push(g);
 }
@@ -2215,6 +2227,7 @@ function doAttack(){
       e.userData.hpFg.position.x=(hr-1)*.75*e.userData.sc;
       if(e.userData.hp<=0){
         e.userData.dead=true;
+        if(e.userData.nameLabel) e.userData.nameLabel.style.display='none';
         // Drop loot
         const table=LOOT_TABLES[Math.min(e.userData.tier,4)]||LOOT_TABLES[1];
         const drops=Math.ceil(Math.random()*e.userData.tier)+1;
@@ -2749,6 +2762,22 @@ function update(){
       const angle=Math.atan2(camera.position.x-e.position.x,camera.position.z-e.position.z);
       hpBg.rotation.y=angle-e.rotation.y;
       hpFg.rotation.y=angle-e.rotation.y;
+    }
+    if(e.userData.nameLabel){
+      const sc=e.userData.sc||1;
+      const labelWorldY=e.position.y+(e.userData.npcType?3.15:2.3*sc+0.42);
+      const wp=new THREE.Vector3(e.position.x,labelWorldY,e.position.z);
+      wp.project(camera);
+      const dist=Math.hypot(player.x-e.position.x,player.z-e.position.z);
+      if(dist<40&&wp.z<1&&wp.z>-1){
+        const sx=(wp.x*.5+.5)*innerWidth;
+        const sy=(-.5*wp.y+.5)*innerHeight;
+        e.userData.nameLabel.style.display='block';
+        e.userData.nameLabel.style.left=sx+'px';
+        e.userData.nameLabel.style.top=sy+'px';
+      } else {
+        e.userData.nameLabel.style.display='none';
+      }
     }
   }
 
