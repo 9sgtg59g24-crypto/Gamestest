@@ -1631,23 +1631,36 @@ const SWIPE_RANGE  = 3.0;  // radius of danger zone
 function startSwipe(enemy){
   const dx=player.x-enemy.position.x, dz=player.z-enemy.position.z;
   const len=Math.hypot(dx,dz)||1;
-  const angle=Math.atan2(dx/len, dz/len);
+  const faceAngle=Math.atan2(dx/len, dz/len);
 
-  function makeArc(thetaStart){
-    const geo=new THREE.RingGeometry(0.3, SWIPE_RANGE, 10, 1, thetaStart, Math.PI*1.15);
-    const mat=new THREE.MeshBasicMaterial({color:0xff3300,transparent:true,opacity:0.4,side:THREE.DoubleSide,depthWrite:false});
-    const mesh=new THREE.Mesh(geo,mat);
-    mesh.rotation.x=-Math.PI/2;
-    mesh.rotation.z=-angle;
-    mesh.position.set(enemy.position.x,0.06,enemy.position.z);
-    scene.add(mesh);
-    return {mesh,mat};
+  // Build a 3D sweep line: a thin box extending outward from a pivot at the enemy's chest.
+  // We animate pivot.rotation.y to sweep the line through the arc during each strike.
+  function makeSweepLine(startAngle){
+    const pivot=new THREE.Group();
+    pivot.position.set(enemy.position.x, 1.05, enemy.position.z);
+    pivot.rotation.y=startAngle;
+    // Thin blade-trail box: narrow width, sword-height tall, SWIPE_RANGE deep
+    const geo=new THREE.BoxGeometry(0.06, 0.75, SWIPE_RANGE);
+    const mat=new THREE.MeshBasicMaterial({color:0xff3300,transparent:true,opacity:0.75,depthWrite:false});
+    const line=new THREE.Mesh(geo,mat);
+    line.position.z=SWIPE_RANGE/2; // extend forward from pivot center
+    pivot.add(line);
+    scene.add(pivot);
+    return {pivot,mat,line};
   }
-  const arc1=makeArc(-Math.PI*0.05);  // right-side
-  const arc2=makeArc(-Math.PI*0.95);  // left-side
-  arc2.mesh.visible=false;
 
-  activeSwipes.push({enemy,phase:'windup1',timer:0,arc1,arc2,hit1:false,hit2:false});
+  // Swing 1: from right (faceAngle+1.1) sweeping left (faceAngle-1.1)
+  const sw1=makeSweepLine(faceAngle+1.1);
+  // Swing 2: from left (faceAngle-1.1) sweeping right (faceAngle+1.1) — hidden until gap ends
+  const sw2=makeSweepLine(faceAngle-1.1);
+  sw2.pivot.visible=false;
+
+  activeSwipes.push({
+    enemy,phase:'windup1',timer:0,
+    sw1,sw2,
+    faceAngle,
+    hit1:false,hit2:false,
+  });
 }
 
 function updateSwipes(dt){
@@ -1658,13 +1671,17 @@ function updateSwipes(dt){
     const alive=e&&!e.userData.dead;
 
     if(s.phase==='windup1'){
+      // Sword raises right; sweep line holds at start angle and pulses
       if(sg&&alive) sg.rotation.z=0.1+(s.timer/SWIPE_WINDUP)*2.0;
-      s.arc1.mat.opacity=0.25+0.22*Math.abs(Math.sin(s.timer*Math.PI*6));
+      s.sw1.mat.opacity=0.45+0.35*Math.abs(Math.sin(s.timer*Math.PI*7));
       if(s.timer>=SWIPE_WINDUP){s.phase='strike1';s.timer=0;}
 
     } else if(s.phase==='strike1'){
-      if(sg&&alive) sg.rotation.z=2.1-(s.timer/SWIPE_STRIKE)*4.2;
-      s.arc1.mat.opacity=Math.max(0,0.85*(1-s.timer/SWIPE_STRIKE));
+      // Sweep line rotates from right to left during the strike
+      const t=Math.min(s.timer/SWIPE_STRIKE,1);
+      s.sw1.pivot.rotation.y=s.faceAngle+1.1-t*2.2;
+      if(sg&&alive) sg.rotation.z=2.1-t*4.2;
+      s.sw1.mat.opacity=Math.max(0,0.9*(1-t));
       if(!s.hit1){
         const dist=Math.hypot(player.x-e.position.x,player.z-e.position.z);
         if(dist<SWIPE_RANGE){
@@ -1676,20 +1693,24 @@ function updateSwipes(dt){
           addLog(`Skeleton Warrior slices you for ${dmg}!`,'d');
         }
       }
-      if(s.timer>=SWIPE_STRIKE){s.phase='gap';s.timer=0;}
+      if(s.timer>=SWIPE_STRIKE){s.sw1.pivot.visible=false;s.phase='gap';s.timer=0;}
 
     } else if(s.phase==='gap'){
       if(sg&&alive) sg.rotation.z=Math.max(0.1, 2.1-(s.timer/SWIPE_GAP)*2.0);
-      if(s.timer>=SWIPE_GAP){s.arc2.mesh.visible=true;s.phase='windup2';s.timer=0;}
+      if(s.timer>=SWIPE_GAP){s.sw2.pivot.visible=true;s.phase='windup2';s.timer=0;}
 
     } else if(s.phase==='windup2'){
+      // Sword raises left; sweep line holds at start angle and pulses
       if(sg&&alive) sg.rotation.z=0.1-(s.timer/SWIPE_WINDUP)*2.0;
-      s.arc2.mat.opacity=0.25+0.22*Math.abs(Math.sin(s.timer*Math.PI*6));
+      s.sw2.mat.opacity=0.45+0.35*Math.abs(Math.sin(s.timer*Math.PI*7));
       if(s.timer>=SWIPE_WINDUP){s.phase='strike2';s.timer=0;}
 
     } else if(s.phase==='strike2'){
-      if(sg&&alive) sg.rotation.z=-1.9+(s.timer/SWIPE_STRIKE)*4.2;
-      s.arc2.mat.opacity=Math.max(0,0.85*(1-s.timer/SWIPE_STRIKE));
+      // Sweep line rotates from left to right
+      const t=Math.min(s.timer/SWIPE_STRIKE,1);
+      s.sw2.pivot.rotation.y=s.faceAngle-1.1+t*2.2;
+      if(sg&&alive) sg.rotation.z=-1.9+t*4.2;
+      s.sw2.mat.opacity=Math.max(0,0.9*(1-t));
       if(!s.hit2){
         const dist=Math.hypot(player.x-e.position.x,player.z-e.position.z);
         if(dist<SWIPE_RANGE){
@@ -1703,12 +1724,13 @@ function updateSwipes(dt){
       }
       if(s.timer>=SWIPE_STRIKE){
         if(sg&&alive) sg.rotation.z=0.1;
+        s.sw2.pivot.visible=false;
         s.phase='fade';s.timer=0;
       }
     } else {
-      s.arc1.mat.opacity=0;s.arc2.mat.opacity=0;
-      if(s.timer>=0.35){
-        scene.remove(s.arc1.mesh);scene.remove(s.arc2.mesh);
+      // fade — meshes already hidden; just remove after brief delay
+      if(s.timer>=0.1){
+        scene.remove(s.sw1.pivot);scene.remove(s.sw2.pivot);
         activeSwipes.splice(i,1);
       }
     }
@@ -3180,7 +3202,8 @@ function update(){
       } else if(totalActiveSlams < 2){
         startSlam(e); showSlamWarn();
       }
-      e.userData.attackCd = cdBase + e.userData.tier * 0.5 + Math.random() * 1.5;
+      const cdMult = pat === 'shoot' ? 0.33 : 1.0;
+      e.userData.attackCd = (cdBase + e.userData.tier * 0.5 + Math.random() * 1.5) * cdMult;
       player.inCombat = true; player.combatTimer = 8;
     } else if(e.userData.attackCd <= 0 && totalActiveSlams >= 2){
       e.userData.attackCd = 0.8 + Math.random() * 0.5;
