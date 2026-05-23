@@ -450,9 +450,9 @@ const torch2=new THREE.PointLight(0xff6600,2.0,22);torch2.position.set(-10,4,5);
 
 // Day/night state
 const DN = {
-  time: 0.75,        // 0..1, 0=midnight, 0.25=dawn, 0.5=noon, 0.75=dusk
+  time: 0.5,         // 0..1, 0=midnight, 0.25=dawn, 0.5=noon, 0.75=dusk
   speed: 1/240,      // full cycle in 240 seconds
-  isNight: true,
+  isNight: false,
 };
 
 // Stars particle system
@@ -1719,26 +1719,25 @@ function makeEnemy(x,z,forceTier){
   scene.add(g);enemies.push(g);
 }
 
-// Spawn enemies — no spawns inside safe zone
-// Near: ~6 tier-1
-for(let i=0;i<6;i++){
-  const a=Math.random()*Math.PI*2,r=rnd(SAFE_RADIUS+4,55);
-  makeEnemy(Math.cos(a)*r,Math.sin(a)*r);
-}
-// Mid: ~6 tier-2
-for(let i=0;i<6;i++){
-  const a=Math.random()*Math.PI*2,r=rnd(55,90);
-  makeEnemy(Math.cos(a)*r,Math.sin(a)*r);
-}
-// Far: ~5 tier-3
-for(let i=0;i<5;i++){
-  const a=Math.random()*Math.PI*2,r=rnd(100,150);
-  makeEnemy(Math.cos(a)*r,Math.sin(a)*r);
-}
-// Elite: ~3 tier-4 very far out
-for(let i=0;i<3;i++){
-  const a=Math.random()*Math.PI*2,r=rnd(160,220);
-  makeEnemy(Math.cos(a)*r,Math.sin(a)*r,4);
+// ── TEST SPAWN RING — one of each mob, evenly spaced around the safe zone ──
+// 7 mobs total at radius 54 (SAFE_RADIUS + 10), equal angular spacing
+{
+  const R = SAFE_RADIUS + 10;
+  const mobs = [
+    { kind:'named', type:'skeleton' },
+    { kind:'proc',  tier:1 },
+    { kind:'named', type:'mage'    },
+    { kind:'proc',  tier:2 },
+    { kind:'named', type:'archer'  },
+    { kind:'proc',  tier:3 },
+    { kind:'proc',  tier:4 },
+  ];
+  mobs.forEach((m, i) => {
+    const a = (i / mobs.length) * Math.PI * 2;
+    const x = Math.cos(a) * R, z = Math.sin(a) * R;
+    if(m.kind === 'named') makeNamedNPC(x, z, m.type);
+    else makeEnemy(x, z, m.tier);
+  });
 }
 
 // ── NAMED NPC FACTORY ──
@@ -1909,9 +1908,7 @@ function makeNamedNPC(x,z,type){
 }
 
 // Spawn the three named NPCs just east of the safe zone
-makeNamedNPC(52, 0,   'skeleton');
-makeNamedNPC(48, -12, 'mage');
-makeNamedNPC(48,  12, 'archer');
+// Named NPCs are now spawned in the test ring above
 
 // ── PLAYER MESH ──
 const PG=new THREE.Group();
