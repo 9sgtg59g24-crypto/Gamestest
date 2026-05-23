@@ -1623,7 +1623,7 @@ function updateRingAtks(dt){
 
 // ── SWIPE ATTACK (Skeleton Warrior — two horizontal scimitar slashes) ──
 const activeSwipes = [];
-const SWIPE_WINDUP = 0.48; // charge-up per swing
+const SWIPE_WINDUP = 0.90; // charge-up per swing (long enough to dodge)
 const SWIPE_STRIKE = 0.16; // actual swipe duration
 const SWIPE_GAP    = 0.30; // pause between the two swings
 const SWIPE_RANGE  = 3.0;  // radius of danger zone
@@ -1637,16 +1637,24 @@ function startSwipe(enemy){
   // We animate pivot.rotation.y to sweep the line through the arc during each strike.
   function makeSweepLine(startAngle){
     const pivot=new THREE.Group();
-    pivot.position.set(enemy.position.x, 1.05, enemy.position.z);
+    pivot.position.set(enemy.position.x, 1.1, enemy.position.z);
     pivot.rotation.y=startAngle;
-    // Thin blade-trail box: narrow width, sword-height tall, SWIPE_RANGE deep
-    const geo=new THREE.BoxGeometry(0.06, 0.75, SWIPE_RANGE);
-    const mat=new THREE.MeshBasicMaterial({color:0xff3300,transparent:true,opacity:0.75,depthWrite:false});
+    // Glowing sword-arc: fat cylinder laid horizontally extending from enemy to reach
+    const geo=new THREE.CylinderGeometry(0.10, 0.06, SWIPE_RANGE, 6);
+    const mat=new THREE.MeshBasicMaterial({color:0xff3300,transparent:true,opacity:0.88,depthWrite:false});
     const line=new THREE.Mesh(geo,mat);
-    line.position.z=SWIPE_RANGE/2; // extend forward from pivot center
+    // Cylinder axis is Y by default — rotate to lie along Z, then offset forward
+    line.rotation.x=Math.PI/2;
+    line.position.z=SWIPE_RANGE/2;
     pivot.add(line);
+    // Bright edge wire for extra contrast
+    const wireGeo=new THREE.CylinderGeometry(0.10, 0.06, SWIPE_RANGE, 6);
+    const wireMat=new THREE.MeshBasicMaterial({color:0xff8800,transparent:true,opacity:0.95,wireframe:true,depthWrite:false});
+    const wire=new THREE.Mesh(wireGeo,wireMat);
+    wire.rotation.x=Math.PI/2; wire.position.z=SWIPE_RANGE/2;
+    pivot.add(wire);
     scene.add(pivot);
-    return {pivot,mat,line};
+    return {pivot,mat,wireMat,line};
   }
 
   // Swing 1: from right (faceAngle+1.1) sweeping left (faceAngle-1.1)
@@ -1671,17 +1679,17 @@ function updateSwipes(dt){
     const alive=e&&!e.userData.dead;
 
     if(s.phase==='windup1'){
-      // Sword raises right; sweep line holds at start angle and pulses
       if(sg&&alive) sg.rotation.z=0.1+(s.timer/SWIPE_WINDUP)*2.0;
-      s.sw1.mat.opacity=0.45+0.35*Math.abs(Math.sin(s.timer*Math.PI*7));
+      const p=0.55+0.40*Math.abs(Math.sin(s.timer*Math.PI*5));
+      s.sw1.mat.opacity=p; s.sw1.wireMat.opacity=p;
       if(s.timer>=SWIPE_WINDUP){s.phase='strike1';s.timer=0;}
 
     } else if(s.phase==='strike1'){
-      // Sweep line rotates from right to left during the strike
       const t=Math.min(s.timer/SWIPE_STRIKE,1);
       s.sw1.pivot.rotation.y=s.faceAngle+1.1-t*2.2;
       if(sg&&alive) sg.rotation.z=2.1-t*4.2;
-      s.sw1.mat.opacity=Math.max(0,0.9*(1-t));
+      const op=Math.max(0,0.9*(1-t));
+      s.sw1.mat.opacity=op; s.sw1.wireMat.opacity=op;
       if(!s.hit1){
         const dist=Math.hypot(player.x-e.position.x,player.z-e.position.z);
         if(dist<SWIPE_RANGE){
@@ -1696,21 +1704,21 @@ function updateSwipes(dt){
       if(s.timer>=SWIPE_STRIKE){s.sw1.pivot.visible=false;s.phase='gap';s.timer=0;}
 
     } else if(s.phase==='gap'){
-      if(sg&&alive) sg.rotation.z=Math.max(0.1, 2.1-(s.timer/SWIPE_GAP)*2.0);
+      if(sg&&alive) sg.rotation.z=Math.max(0.1,2.1-(s.timer/SWIPE_GAP)*2.0);
       if(s.timer>=SWIPE_GAP){s.sw2.pivot.visible=true;s.phase='windup2';s.timer=0;}
 
     } else if(s.phase==='windup2'){
-      // Sword raises left; sweep line holds at start angle and pulses
       if(sg&&alive) sg.rotation.z=0.1-(s.timer/SWIPE_WINDUP)*2.0;
-      s.sw2.mat.opacity=0.45+0.35*Math.abs(Math.sin(s.timer*Math.PI*7));
+      const p=0.55+0.40*Math.abs(Math.sin(s.timer*Math.PI*5));
+      s.sw2.mat.opacity=p; s.sw2.wireMat.opacity=p;
       if(s.timer>=SWIPE_WINDUP){s.phase='strike2';s.timer=0;}
 
     } else if(s.phase==='strike2'){
-      // Sweep line rotates from left to right
       const t=Math.min(s.timer/SWIPE_STRIKE,1);
       s.sw2.pivot.rotation.y=s.faceAngle-1.1+t*2.2;
       if(sg&&alive) sg.rotation.z=-1.9+t*4.2;
-      s.sw2.mat.opacity=Math.max(0,0.9*(1-t));
+      const op=Math.max(0,0.9*(1-t));
+      s.sw2.mat.opacity=op; s.sw2.wireMat.opacity=op;
       if(!s.hit2){
         const dist=Math.hypot(player.x-e.position.x,player.z-e.position.z);
         if(dist<SWIPE_RANGE){
@@ -1728,7 +1736,6 @@ function updateSwipes(dt){
         s.phase='fade';s.timer=0;
       }
     } else {
-      // fade — meshes already hidden; just remove after brief delay
       if(s.timer>=0.1){
         scene.remove(s.sw1.pivot);scene.remove(s.sw2.pivot);
         activeSwipes.splice(i,1);
@@ -2135,7 +2142,7 @@ function makeNamedNPC(x,z,type){
   g.userData={
     hp:maxHp,maxHp,speed:spd,aggroRange,
     vx:0,vz:0,
-    attackCd:3+Math.random()*2,
+    attackCd: type==='archer' ? 0.4 : 3+Math.random()*2,
     dead:false,tier,hpFg,hpBg,sc,
     attackDmg:tier,pattern,name,
     npcType:type,spawnX:x,spawnZ:z,
@@ -3140,7 +3147,10 @@ function update(){
     } else if(isActive && !eInSafe){
       // Night horde: ALL rush the player
       // Day: only the chosen one pursues
-      const stopDist = isHordeNight ? 3.5 : 4.5;
+      const ePat = e.userData.pattern || 'slam';
+      const stopDist = ePat === 'shoot'
+        ? e.userData.aggroRange * 0.72
+        : (isHordeNight ? 3.5 : 4.5);
       if(dist > stopDist){
         e.userData.vx += (dx/dist)*e.userData.speed*dt*2;
         e.userData.vz += (dz/dist)*e.userData.speed*dt*2;
