@@ -65,6 +65,7 @@ const atkAnim = { active:false, timer:0, duration:0, type:'stab' };
 //  ITEMS / LOOT
 // ═══════════════════════════════════════════════════════
 const ITEM_DEFS = {
+  dashScroll:{name:'Basic Dash Scroll',icon:'📜',type:'Ability', wt:.1,  stats:{},             desc:'Double-tap to learn the Dash ability.', buy:0, sell:0},
   bone:      {name:'Bones',          icon:'🦴',type:'Material', wt:.5,  stats:{},             desc:'Bury for Prayer XP.',          buy:2,   sell:1},
   rustSword: {name:'Rusty Sword',    icon:'🗡️',type:'Weapon',   wt:2,   stats:{atk:+2},        desc:'A corroded blade.',            buy:25,  sell:8},
   ironHelm:  {name:'Iron Helm',      icon:'⛑️',type:'Armour',   wt:3,   stats:{def:+3},        desc:'Dented iron helm.',            buy:40,  sell:14},
@@ -295,17 +296,27 @@ function renderInv(){
     el.addEventListener('click',()=>{
       const slot=parseInt(el.dataset.slot);
       const now=Date.now();
-      if(nearBank&&lastTap.slot===slot&&now-lastTap.time<450){
-        // Double-tap: deposit to bank
+      if(lastTap.slot===slot&&now-lastTap.time<450){
         const s=inventory[slot];if(!s)return;
-        const fi=storageSlots.findIndex(x=>!x);
-        if(fi<0){showNotif('BANK IS FULL!');return;}
-        storageSlots[fi]=s;inventory[slot]=null;
-        saveGame();
-        showNotif(`${ITEM_DEFS[s.id].icon} Deposited`);
-        addLog(`Deposited ${ITEM_DEFS[s.id].icon} ${ITEM_DEFS[s.id].name}.`,'i');
-        lastTap={slot:-1,time:0};
-        renderInv();
+        // Double-tap: dash scroll → learn ability
+        if(s.id==='dashScroll'){
+          inventory[slot]=null;
+          lastTap={slot:-1,time:0};
+          unlockDash();
+          renderInv();
+          return;
+        }
+        // Double-tap near bank: deposit
+        if(nearBank){
+          const fi=storageSlots.findIndex(x=>!x);
+          if(fi<0){showNotif('BANK IS FULL!');return;}
+          storageSlots[fi]=s;inventory[slot]=null;
+          saveGame();
+          showNotif(`${ITEM_DEFS[s.id].icon} Deposited`);
+          addLog(`Deposited ${ITEM_DEFS[s.id].icon} ${ITEM_DEFS[s.id].name}.`,'i');
+          lastTap={slot:-1,time:0};
+          renderInv();
+        }
       } else {
         lastTap={slot,time:now};
         useItem(el.dataset.id,slot);
@@ -1773,6 +1784,15 @@ function doJump(){
   }
 }
 
+let dashUnlocked=false;
+function unlockDash(){
+  dashUnlocked=true;
+  const btn=document.getElementById('bDash');
+  if(btn) btn.style.display='flex';
+  saveGame();
+  addLog('⚡ Dash ability learned!','x');
+  showNotif('⚡ DASH UNLOCKED!');
+}
 const DASH_SPEED=80,DASH_DUR=0.30,DASH_CD=5.0;
 const dashGhosts=[];
 function spawnDashGhost(){
@@ -1842,7 +1862,7 @@ function spawnLightningBolt(x,z,angle){
 }
 
 function doDash(){
-  if(player.dashCd>0||playerDead||player.hp<=0)return;
+  if(!dashUnlocked||player.dashCd>0||playerDead||player.hp<=0)return;
   player.dashImpX=Math.sin(player.angle)*DASH_SPEED;
   player.dashImpZ=Math.cos(player.angle)*DASH_SPEED;
   player.dashTimer=DASH_DUR;player.dashing=true;player.dashCd=DASH_CD;
@@ -1893,6 +1913,11 @@ function doAttack(){
         for(let d=0;d<drops;d++){
           const item=table[Math.floor(Math.random()*table.length)];
           spawnLoot(e.position.x+rnd(-1.2,1.2),e.position.z+rnd(-1.2,1.2),item);
+        }
+        // 1/5 chance: drop Basic Dash Scroll from tier-1 enemies (if not yet unlocked)
+        if(e.userData.tier===1&&!dashUnlocked&&Math.random()<0.2){
+          spawnLoot(e.position.x+rnd(-1,1),e.position.z+rnd(-1,1),'dashScroll');
+          addLog('📜 A scroll tumbles to the ground...','i');
         }
         scene.remove(e);
         player.score+=100*e.userData.tier;
@@ -2727,6 +2752,7 @@ function saveGame(){
       storageSlots:JSON.parse(JSON.stringify(storageSlots)),
       equippedWeaponId:equippedWeapon.id,
       score:player.score,
+      dashUnlocked,
     };
     for(const k in SK) data.skills[k]=SK[k].xp;
     localStorage.setItem(SAVE_KEY,JSON.stringify(data));
@@ -2753,6 +2779,7 @@ function loadGame(){
       equippedWeapon=WEAPONS[data.equippedWeaponId];
     }
     if(typeof data.score==='number') player.score=data.score;
+    if(data.dashUnlocked){dashUnlocked=true;const btn=document.getElementById('bDash');if(btn)btn.style.display='flex';}
     player.maxHp=skLv('hitpoints')*10;
     player.hp=player.maxHp;
     player.maxPrayer=skLv('prayer');
