@@ -65,34 +65,68 @@ const atkAnim = { active:false, timer:0, duration:0, type:'stab' };
 //  ITEMS / LOOT
 // ═══════════════════════════════════════════════════════
 const ITEM_DEFS = {
-  dashScroll:{name:'Basic Dash Scroll',icon:'📜',type:'Ability', wt:.1,  stats:{},             desc:'Double-tap to learn the Dash ability.', buy:0, sell:0},
-  bone:      {name:'Bones',          icon:'🦴',type:'Material', wt:.5,  stats:{},             desc:'Bury for Prayer XP.',          buy:2,   sell:1},
-  rustSword: {name:'Rusty Sword',    icon:'🗡️',type:'Weapon',   wt:2,   stats:{atk:+2},        desc:'A corroded blade.',            buy:25,  sell:8},
-  ironHelm:  {name:'Iron Helm',      icon:'⛑️',type:'Armour',   wt:3,   stats:{def:+3},        desc:'Dented iron helm.',            buy:40,  sell:14},
-  leatherAm: {name:'Leather Armour', icon:'🥋',type:'Armour',   wt:2.5, stats:{def:+2},        desc:'Worn leather vest.',           buy:30,  sell:10},
-  coin:      {name:'Gold Coin',      icon:'🪙',type:'Currency', wt:0,   stats:{},             desc:'Currency of the realm.',       buy:0,   sell:0,  stackMax:100},
-  healthHrb: {name:'Health Herb',    icon:'🌿',type:'Consumable',wt:.2,  stats:{},             desc:'Restores 10 HP when used.',    buy:18,  sell:6},
-  darkShard: {name:'Dark Shard',     icon:'💎',type:'Rare',     wt:.3,  stats:{magic:+5},     desc:'Fragment of dark magic.',      buy:80,  sell:35},
-  tombKey:   {name:'Tomb Key',       icon:'🗝️',type:'Quest',    wt:.1,  stats:{},             desc:'Key to an ancient tomb.',      buy:0,   sell:50},
-  poisVial:  {name:'Poison Vial',    icon:'⚗️',type:'Consumable',wt:.3,  stats:{},             desc:'Poisons your weapon.',         buy:22,  sell:8},
-  chainMail: {name:'Chainmail',      icon:'🔗',type:'Armour',   wt:5,   stats:{def:+5},        desc:'Links of iron.',               buy:70,  sell:25},
-  grimTome:  {name:'Grim Tome',      icon:'📖',type:'Spellbook',wt:1,   stats:{magic:+4},     desc:'Whispers dark spells.',        buy:60,  sell:22},
-  shadCloak: {name:'Shadow Cloak',   icon:'🧥',type:'Armour',   wt:1.8, stats:{def:+4,atk:+1},desc:'Cloak of shadows.',            buy:90,  sell:38},
-  healthPot: {name:'Health Potion',  icon:'🧪',type:'Consumable',wt:.3,  stats:{},             desc:'Fully restores HP.',           buy:45,  sell:15},
-  ironOre:   {name:'Iron Ore',       icon:'🪨',type:'Material', wt:1,   stats:{},             desc:'Raw iron ore.',                buy:5,   sell:3},
+  // Ability
+  dashScroll:{name:'Basic Dash Scroll',icon:'📜',type:'Ability',  wt:.1,  stats:{},              desc:'Double-tap to learn Dash.',      buy:0,  sell:0},
+  // Materials
+  bone:      {name:'Bones',           icon:'🦴',type:'Material',  wt:.5,  stats:{},              desc:'Bury for Prayer XP.',            buy:2,  sell:1},
+  ironOre:   {name:'Iron Ore',        icon:'🪨',type:'Material',  wt:1,   stats:{},              desc:'Raw iron ore.',                  buy:5,  sell:3},
+  // Weapons — drop from enemies, tap in inventory to equip
+  wShortSword:{name:'Short Sword',    icon:'⚔️',type:'Weapon',    wt:2,   stats:{atk:+7,str:+5},  desc:'Balanced iron shortsword.',      buy:0,  sell:20,  weaponId:'shortSword'},
+  wWarhammer: {name:'Warhammer',      icon:'🔨',type:'Weapon',    wt:4,   stats:{str:+12},         desc:'Heavy and slow. Hits hard.',     buy:0,  sell:35,  weaponId:'warhammer'},
+  wBattleAxe: {name:'Battle Axe',    icon:'🪓',type:'Weapon',    wt:3.5, stats:{atk:+9,str:+10},  desc:'Wide blade for cleaving.',       buy:0,  sell:40,  weaponId:'battleAxe'},
+  wDarkBlade: {name:'Dark Blade',    icon:'🌑',type:'Weapon',    wt:2,   stats:{atk:+16,str:+16}, desc:'Cursed blade forged in shadow.',  buy:0,  sell:120, weaponId:'darkBlade'},
+  rustSword:  {name:'Rusty Sword',   icon:'🗡️',type:'Junk',      wt:2,   stats:{},              desc:'Too corroded to use. Sell it.',  buy:0,  sell:8},
+  // Armour — Head slot
+  ironHelm:   {name:'Iron Helm',     icon:'⛑️',type:'Armour',    wt:3,   stats:{def:+3},          desc:'Dented iron helm.',              buy:0,  sell:14,  slot:'head'},
+  steelHelm:  {name:'Steel Helm',    icon:'🪖',type:'Armour',    wt:4,   stats:{def:+6},          desc:'Sturdy steel helmet.',           buy:0,  sell:30,  slot:'head'},
+  // Armour — Body slot
+  leatherAm:  {name:'Leather Armour',icon:'🥋',type:'Armour',    wt:2.5, stats:{def:+2},          desc:'Worn leather vest.',             buy:0,  sell:10,  slot:'body'},
+  chainMail:  {name:'Chainmail',     icon:'🔗',type:'Armour',    wt:5,   stats:{def:+5},          desc:'Links of iron.',                 buy:0,  sell:25,  slot:'body'},
+  steelPlate: {name:'Steel Plate',   icon:'🛡️',type:'Armour',    wt:7,   stats:{def:+9},          desc:'Heavy steel breastplate.',       buy:0,  sell:55,  slot:'body'},
+  // Armour — Legs slot
+  ironLegs:   {name:'Iron Legs',     icon:'🦵',type:'Armour',    wt:3.5, stats:{def:+4},          desc:'Iron plate legs.',               buy:0,  sell:18,  slot:'legs'},
+  steelLegs:  {name:'Steel Legs',    icon:'👖',type:'Armour',    wt:5,   stats:{def:+7},          desc:'Heavy steel leg armour.',        buy:0,  sell:40,  slot:'legs'},
+  // Armour — Cape slot
+  shadCloak:  {name:'Shadow Cloak',  icon:'🧥',type:'Armour',    wt:1.8, stats:{def:+4,atk:+1},   desc:'Cloak of shadows.',              buy:0,  sell:38,  slot:'cape'},
+  dragonCape: {name:'Dragon Cape',   icon:'🐉',type:'Armour',    wt:1.5, stats:{def:+7,str:+2},   desc:'Woven from dragonhide.',         buy:0,  sell:85,  slot:'cape'},
+  // Currency & Consumables
+  coin:       {name:'Gold Coin',     icon:'🪙',type:'Currency',  wt:0,   stats:{},              desc:'Currency of the realm.',         buy:0,  sell:0,   stackMax:100},
+  healthHrb:  {name:'Health Herb',   icon:'🌿',type:'Consumable', wt:.2,  stats:{},              desc:'Restores 10 HP when used.',      buy:18, sell:6},
+  healthPot:  {name:'Health Potion', icon:'🧪',type:'Consumable', wt:.3,  stats:{},              desc:'Fully restores HP.',             buy:45, sell:15},
+  poisVial:   {name:'Poison Vial',   icon:'⚗️',type:'Consumable', wt:.3,  stats:{},              desc:'Poisons your weapon.',           buy:22, sell:8},
+  // Rare / Quest
+  darkShard:  {name:'Dark Shard',    icon:'💎',type:'Rare',      wt:.3,  stats:{magic:+5},       desc:'Fragment of dark magic.',        buy:80, sell:35},
+  tombKey:    {name:'Tomb Key',      icon:'🗝️',type:'Quest',     wt:.1,  stats:{},              desc:'Key to an ancient tomb.',        buy:0,  sell:50},
+  grimTome:   {name:'Grim Tome',     icon:'📖',type:'Spellbook', wt:1,   stats:{magic:+4},       desc:'Whispers dark spells.',          buy:60, sell:22},
 };
 
 const COIN_STACK_MAX = 100;
 
 const LOOT_TABLES = {
-  1:['bone','coin','coin','coin','healthHrb','rustSword'],
-  2:['bone','coin','coin','ironHelm','leatherAm','poisVial','healthHrb'],
-  3:['bone','coin','coin','chainMail','darkShard','tombKey','grimTome','shadCloak'],
-  4:['coin','coin','darkShard','darkShard','grimTome','shadCloak','healthPot'], // elite
+  1:['bone','coin','coin','coin','healthHrb','ironHelm','leatherAm','ironLegs'],
+  2:['bone','coin','coin','ironHelm','leatherAm','ironLegs','chainMail','poisVial','healthHrb','wShortSword'],
+  3:['coin','coin','chainMail','steelHelm','steelLegs','ironLegs','wWarhammer','wBattleAxe','grimTome','darkShard','shadCloak'],
+  4:['coin','coin','steelPlate','steelLegs','dragonCape','wDarkBlade','grimTome','darkShard','healthPot'], // elite
 };
 
 const inventory = new Array(28).fill(null);
 const storageSlots = new Array(28).fill(null);
+
+// ── EQUIPMENT ──
+const equippedArmour = { head:null, body:null, legs:null, cape:null };
+// Maps weapon id → inventory item id (for returning old weapon to pack)
+const WEAPON_ITEM = { shortSword:'wShortSword', warhammer:'wWarhammer', battleAxe:'wBattleAxe', darkBlade:'wDarkBlade' };
+function getArmourDef(){
+  let d=0;
+  for(const slot in equippedArmour){ const id=equippedArmour[slot]; if(id&&ITEM_DEFS[id]) d+=(ITEM_DEFS[id].stats.def||0); }
+  return d;
+}
+function applyDefence(rawDmg){
+  const defLv=skLv('defence');
+  const armDef=getArmourDef();
+  const maxRed=Math.floor(defLv*0.15+armDef*0.4);
+  return Math.max(0,rawDmg-Math.floor(Math.random()*(maxRed+1)));
+}
 
 function countCoins(){
   let total=0;
@@ -232,7 +266,7 @@ function openPanel(tab){
 function closePanel(){panelOpen=false;document.getElementById('sidePanel').classList.remove('open');}
 function renderPanel(){
   if(activeTab==='inv')renderInv();
-  else if(activeTab==='wpn')renderWeapons();
+  else if(activeTab==='wpn')renderEquip();
   else if(activeTab==='skills')renderSkills();
   else if(activeTab==='bank')renderBank();
   else renderLog();
@@ -325,40 +359,103 @@ function renderInv(){
     });
   });
 }
-function renderWeapons(){
+let selectedEquipSlot=null;
+function renderEquip(){
   const b=document.getElementById('spBody');
-  let h='<div style="font-size:7px;color:#666;padding:4px 0 8px;letter-spacing:1px;">TAP TO EQUIP</div><div class="wpn-grid">';
-  for(const id in WEAPONS){
-    const w=WEAPONS[id];
-    const equipped=equippedWeapon.id===id;
-    const atkReq=skLv('attack')>=w.reqAtk, strReq=skLv('strength')>=w.reqStr;
-    const canUse=atkReq&&strReq;
-    h+=`<div class="wpn-card${equipped?' equipped':''}" data-wpn="${id}" style="${canUse?'':'opacity:.45'}">
-      <div class="wpn-card-ico">${w.icon}</div>
-      <div class="wpn-card-name">${w.name}</div>
-      <div class="wpn-card-stats">
-        ATK+<span>${w.atkBonus}</span>  STR+<span>${w.strBonus}</span><br>
-        Max Hit: <span>${weaponMaxHit(w)}</span><br>
-        Speed: <span>${w.speed<=1?'Fast':w.speed<=1.6?'Normal':'Slow'}</span><br>
-        Req Atk:<span>${w.reqAtk}</span> Str:<span>${w.reqStr}</span>
-      </div>
+  const ESLOTS=[
+    {key:'weapon',label:'WEAPON',icon:'⚔️'},
+    {key:'head',  label:'HEAD',  icon:'⛑️'},
+    {key:'body',  label:'BODY',  icon:'🛡️'},
+    {key:'legs',  label:'LEGS',  icon:'🦵'},
+    {key:'cape',  label:'CAPE',  icon:'🧥'},
+  ];
+  let h='<div style="font-size:7px;color:#666;padding:4px 0 6px;letter-spacing:1px;">TAP A SLOT TO SWAP FROM PACK</div>';
+  h+='<div class="equip-slots">';
+  for(const s of ESLOTS){
+    let itemIcon='',itemName='';
+    if(s.key==='weapon'){itemIcon=equippedWeapon.icon;itemName=equippedWeapon.name;}
+    else if(equippedArmour[s.key]){const d=ITEM_DEFS[equippedArmour[s.key]];itemIcon=d.icon;itemName=d.name;}
+    const sel=selectedEquipSlot===s.key;
+    h+=`<div class="equip-slot${sel?' equip-sel':''}" data-eslot="${s.key}">
+      <span class="equip-slot-label">${s.icon} ${s.label}</span>
+      ${itemName?`<span class="equip-slot-item">${itemIcon} ${itemName}</span>`:`<span class="equip-slot-empty">— empty —</span>`}
     </div>`;
   }
   h+='</div>';
-  b.innerHTML=h;
-  b.querySelectorAll('.wpn-card').forEach(el=>{
-    el.addEventListener('click',()=>{
-      const w=WEAPONS[el.dataset.wpn];
-      if(!w)return;
-      if(skLv('attack')<w.reqAtk||skLv('strength')<w.reqStr){
-        showNotif(`Need Atk ${w.reqAtk} / Str ${w.reqStr}`);return;
+  const defBonus=getArmourDef();
+  h+=`<div style="font-size:7px;color:#4499dd;letter-spacing:1px;padding:4px 0 2px;text-align:center;">🛡 Armour bonus: +${defBonus} DEF</div>`;
+  if(selectedEquipSlot){
+    const slot=selectedEquipSlot;
+    let matchItems=[];
+    for(let i=0;i<28;i++){
+      const s=inventory[i];if(!s)continue;
+      const def=ITEM_DEFS[s.id];if(!def)continue;
+      if(slot==='weapon'&&def.weaponId) matchItems.push({invSlot:i,id:s.id});
+      else if(slot!=='weapon'&&def.slot===slot) matchItems.push({invSlot:i,id:s.id});
+    }
+    h+=`<div style="font-size:7px;color:#a07828;letter-spacing:1px;padding:8px 0 4px;border-top:1px solid rgba(160,120,40,.2);margin-top:6px;">FROM PACK — ${slot.toUpperCase()}</div>`;
+    if(matchItems.length===0){
+      h+=`<div style="font-size:7px;color:#555;padding:6px;text-align:center;">No ${slot} items in pack</div>`;
+    } else {
+      h+='<div class="wpn-grid">';
+      for(const item of matchItems){
+        const def=ITEM_DEFS[item.id];
+        const st=Object.entries(def.stats).map(([k,v])=>`${k}:${v>0?'+':''}${v}`).join(' ')||'—';
+        h+=`<div class="wpn-card" data-equip-inv="${item.invSlot}">
+          <div class="wpn-card-ico">${def.icon}</div>
+          <div class="wpn-card-name">${def.name}</div>
+          <div class="wpn-card-stats">${st}</div>
+          <div style="font-size:7px;color:#4fc04f;margin-top:4px;letter-spacing:1px;">▲ EQUIP</div>
+        </div>`;
       }
-      equippedWeapon=w;
-      updateWeaponMesh();
-      updateWeaponHUD();
-      renderWeapons();
-      saveGame();
-      showNotif(`${w.icon} ${w.name} equipped!`);
+      h+='</div>';
+    }
+    const canUnequipWeapon=slot==='weapon'&&WEAPON_ITEM[equippedWeapon.id];
+    const canUnequipArmour=slot!=='weapon'&&equippedArmour[slot];
+    if(canUnequipWeapon||canUnequipArmour){
+      h+=`<button data-unequip="${slot}" style="width:100%;margin-top:8px;padding:6px;background:rgba(40,15,15,.9);border:1px solid rgba(160,60,40,.5);border-radius:3px;color:#cc6644;font-size:7px;letter-spacing:1px;cursor:pointer;">✕ UNEQUIP ${slot.toUpperCase()}</button>`;
+    }
+  }
+  b.innerHTML=h;
+  b.querySelectorAll('[data-eslot]').forEach(el=>{
+    el.addEventListener('click',()=>{selectedEquipSlot=selectedEquipSlot===el.dataset.eslot?null:el.dataset.eslot;renderEquip();});
+  });
+  b.querySelectorAll('[data-equip-inv]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const invSlot=parseInt(el.dataset.equipInv);
+      const item=inventory[invSlot];if(!item)return;
+      const def=ITEM_DEFS[item.id];if(!def)return;
+      if(def.weaponId){
+        const wDef=WEAPONS[def.weaponId];if(!wDef)return;
+        if(skLv('attack')<wDef.reqAtk||skLv('strength')<wDef.reqStr){showNotif(`Need Atk ${wDef.reqAtk} / Str ${wDef.reqStr}`);return;}
+        const oldItemId=WEAPON_ITEM[equippedWeapon.id];
+        if(oldItemId){const fi=inventory.findIndex((x,i)=>!x&&i!==invSlot);if(fi>=0)inventory[fi]={id:oldItemId,qty:1};}
+        equippedWeapon=wDef;inventory[invSlot]=null;
+        updateWeaponMesh();updateWeaponHUD();
+        addLog(`Equipped ${def.name}.`,'i');showNotif(`${def.icon} ${def.name} equipped!`);
+      } else if(def.slot){
+        const oldId=equippedArmour[def.slot];
+        if(oldId){const fi=inventory.findIndex((x,i)=>!x&&i!==invSlot);if(fi<0){showNotif('INVENTORY FULL!');return;}inventory[fi]={id:oldId,qty:1};}
+        equippedArmour[def.slot]=item.id;inventory[invSlot]=null;
+        addLog(`Equipped ${def.name}.`,'i');showNotif(`${def.icon} ${def.name} equipped!`);
+      }
+      saveGame();renderEquip();
+    });
+  });
+  b.querySelectorAll('[data-unequip]').forEach(el=>{
+    el.addEventListener('click',()=>{
+      const slot=el.dataset.unequip;
+      if(slot==='weapon'){
+        const oldItemId=WEAPON_ITEM[equippedWeapon.id];if(!oldItemId){showNotif("Can't unequip starting weapon");return;}
+        const fi=inventory.findIndex(x=>!x);if(fi<0){showNotif('INVENTORY FULL!');return;}
+        inventory[fi]={id:oldItemId,qty:1};equippedWeapon=WEAPONS.ironDagger;
+        updateWeaponMesh();updateWeaponHUD();showNotif('Weapon unequipped — back to Iron Dagger');
+      } else {
+        const id=equippedArmour[slot];if(!id)return;
+        const fi=inventory.findIndex(x=>!x);if(fi<0){showNotif('INVENTORY FULL!');return;}
+        inventory[fi]={id,qty:1};equippedArmour[slot]=null;showNotif(`${ITEM_DEFS[id].name} unequipped`);
+      }
+      saveGame();renderEquip();
     });
   });
 }
@@ -390,18 +487,41 @@ function showTooltip(id,ev){
 }
 function hideTooltip(){document.getElementById('tooltip').classList.remove('show');}
 function useItem(id,slot){
+  const def=ITEM_DEFS[id];
   if(id==='healthHrb'){
     player.hp=Math.min(player.maxHp,player.hp+10);
     inventory[slot].qty--;if(inventory[slot].qty<=0)inventory[slot]=null;
     addLog('Used Health Herb. +10 HP','h');showNotif('+10 HP RESTORED');
     spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),10,'hs-h');
     if(panelOpen)renderPanel();
+  } else if(id==='healthPot'){
+    player.hp=player.maxHp;
+    inventory[slot].qty--;if(inventory[slot].qty<=0)inventory[slot]=null;
+    addLog('Drank Health Potion. Full HP restored.','h');showNotif('❤️ FULL HP RESTORED');
+    spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),player.maxHp,'hs-h');
+    if(panelOpen)renderPanel();
   } else if(id==='bone'){
     gainXp('prayer',4.5);
     inventory[slot].qty--;if(inventory[slot].qty<=0)inventory[slot]=null;
     addLog('Buried bones. +4.5 Prayer XP','x');
     if(panelOpen)renderPanel();
-  } else { showNotif(`${ITEM_DEFS[id]?ITEM_DEFS[id].name:id} used!`); }
+  } else if(def&&def.weaponId){
+    const wDef=WEAPONS[def.weaponId];if(!wDef)return;
+    if(skLv('attack')<wDef.reqAtk||skLv('strength')<wDef.reqStr){showNotif(`Need Atk ${wDef.reqAtk} / Str ${wDef.reqStr}`);return;}
+    const oldItemId=WEAPON_ITEM[equippedWeapon.id];
+    if(oldItemId){const fi=inventory.findIndex((x,i)=>!x&&i!==slot);if(fi>=0)inventory[fi]={id:oldItemId,qty:1};}
+    equippedWeapon=wDef;inventory[slot]=null;
+    updateWeaponMesh();updateWeaponHUD();
+    addLog(`Equipped ${def.name}.`,'i');showNotif(`${def.icon} ${def.name} equipped!`);
+    if(panelOpen)renderPanel();saveGame();
+  } else if(def&&def.slot){
+    const armSlot=def.slot;
+    const oldId=equippedArmour[armSlot];
+    if(oldId){const fi=inventory.findIndex((x,i)=>!x&&i!==slot);if(fi<0){showNotif('INVENTORY FULL!');return;}inventory[fi]={id:oldId,qty:1};}
+    equippedArmour[armSlot]=id;inventory[slot]=null;
+    addLog(`Equipped ${def.name}.`,'i');showNotif(`${def.icon} ${def.name} equipped!`);
+    if(panelOpen)renderPanel();saveGame();
+  } else { showNotif(`${def?def.name:id} — no use yet`); }
 }
 function refreshHUD(){
   document.getElementById('combLvl').textContent=combatLv();
@@ -1524,10 +1644,11 @@ function updateCharges(dt){
           c.hit=true;
           const tier=c.enemy?c.enemy.userData.tier:1;
           const dmg=tier*4+Math.floor(Math.random()*6);
-          player.hp=Math.max(0,player.hp-dmg);
+          const rdmg=applyDefence(dmg);
+          player.hp=Math.max(0,player.hp-rdmg);
           gainXp('defence',dmg*2);
-          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),dmg,'hs-p');
-          addLog(`${c.enemy?c.enemy.userData.name:'Enemy'} charged through you for ${dmg}!`,'d');
+          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),rdmg,'hs-p');
+          addLog(`${c.enemy?c.enemy.userData.name:'Enemy'} charged through you for ${rdmg}!`,'d');
         }
       }
       const dist=Math.hypot(c.cx-c.ox,c.cz-c.oz);
@@ -1620,10 +1741,11 @@ function updateRingAtks(dt){
       if(pdist<RING_RADIUS_END+1.5){
         const tier=r.enemy?r.enemy.userData.tier:1;
         const dmg=tier*5+Math.floor(Math.random()*8);
-        player.hp=Math.max(0,player.hp-dmg);
+        const rdmg=applyDefence(dmg);
+        player.hp=Math.max(0,player.hp-rdmg);
         gainXp('defence',dmg*2);
-        spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),dmg,'hs-p');
-        addLog(`Ring of ruin hit you for ${dmg}! Step outside the ring next time.`,'d');
+        spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),rdmg,'hs-p');
+        addLog(`Ring of ruin hit you for ${rdmg}! Step outside the ring next time.`,'d');
       } else {
         showNotif('Ring dodged! ✦'); gainXp('agility',12);
       }
@@ -1710,10 +1832,11 @@ function updateSwipes(dt){
         if(dist<SWIPE_RANGE){
           s.hit1=true;
           const dmg=3+Math.floor(Math.random()*5);
-          player.hp=Math.max(0,player.hp-dmg);
+          const rdmg=applyDefence(dmg);
+          player.hp=Math.max(0,player.hp-rdmg);
           gainXp('defence',dmg*2);
-          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),dmg,'hs-p');
-          addLog(`Skeleton Warrior slices you for ${dmg}!`,'d');
+          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),rdmg,'hs-p');
+          addLog(`Skeleton Warrior slices you for ${rdmg}!`,'d');
         }
       }
       if(s.timer>=SWIPE_STRIKE){s.sw1.pivot.visible=false;s.phase='gap';s.timer=0;}
@@ -1739,10 +1862,11 @@ function updateSwipes(dt){
         if(dist<SWIPE_RANGE){
           s.hit2=true;
           const dmg=3+Math.floor(Math.random()*5);
-          player.hp=Math.max(0,player.hp-dmg);
+          const rdmg2=applyDefence(dmg);
+          player.hp=Math.max(0,player.hp-rdmg2);
           gainXp('defence',dmg*2);
-          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),dmg,'hs-p');
-          addLog(`Skeleton Warrior slices you again for ${dmg}!`,'d');
+          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),rdmg2,'hs-p');
+          addLog(`Skeleton Warrior slices you again for ${rdmg2}!`,'d');
         }
       }
       if(s.timer>=SWIPE_STRIKE){
@@ -1841,10 +1965,11 @@ function updateShots(dt){
         if(dist<1.0){
           s.hit=true;
           const dmg=4+Math.floor(Math.random()*5);
-          player.hp=Math.max(0,player.hp-dmg);
+          const rdmg=applyDefence(dmg);
+          player.hp=Math.max(0,player.hp-rdmg);
           gainXp('defence',dmg*2);
-          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),dmg,'hs-p');
-          addLog(`${e.userData.name} shoots an arrow for ${dmg}!`,'d');
+          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),rdmg,'hs-p');
+          addLog(`${e.userData.name} shoots an arrow for ${rdmg}!`,'d');
           s.phase='done';s.timer=0;
         }
       }
@@ -1916,10 +2041,11 @@ function updateLightningBolts(dt){
       if(d < 1.0){
         b.hit = true;
         const dmg = 5 + Math.floor(Math.random()*7);
-        player.hp = Math.max(0, player.hp - dmg);
+        const rdmg = applyDefence(dmg);
+        player.hp = Math.max(0, player.hp - rdmg);
         gainXp('defence', dmg*2);
-        spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)), dmg, 'hs-p');
-        addLog(`Supreme Mage's lightning strikes you for ${dmg}!`, 'd');
+        spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)), rdmg, 'hs-p');
+        addLog(`Supreme Mage's lightning strikes you for ${rdmg}!`, 'd');
         scene.remove(b.grp); activeLightningBolts.splice(i, 1); continue;
       }
     }
@@ -2020,10 +2146,11 @@ function updateBossSpecials(dt){
           if(!ind.hit && Math.hypot(player.x-ind.x, player.z-ind.z) < 1.6){
             ind.hit = true;
             const dmg = 9 + Math.floor(Math.random()*10);
-            player.hp = Math.max(0, player.hp - dmg);
+            const rdmg = applyDefence(dmg);
+            player.hp = Math.max(0, player.hp - rdmg);
             gainXp('defence', dmg*2);
-            spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)), dmg, 'hs-p');
-            addLog(`Sky lightning strikes you for ${dmg}!`, 'd');
+            spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)), rdmg, 'hs-p');
+            addLog(`Sky lightning strikes you for ${rdmg}!`, 'd');
           }
         }
       }
@@ -3116,11 +3243,12 @@ function updateSlams(dt){
           s.hit = true;
           const tier = s.enemy ? s.enemy.userData.tier : 1;
           const dmg  = tier * 3 + Math.floor(Math.random() * tier * 4);
-          player.hp  = Math.max(0, player.hp - dmg);
+          const rdmg = applyDefence(dmg);
+          player.hp  = Math.max(0, player.hp - rdmg);
           player.inCombat = true; player.combatTimer = 8;
           gainXp('defence', dmg*2);
-          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)), dmg, 'hs-p');
-          addLog(`Slam crushed you for ${dmg}! Sidestep next time.`, 'd');
+          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)), rdmg, 'hs-p');
+          addLog(`Slam crushed you for ${rdmg}! Sidestep next time.`, 'd');
         } else if(!s.hit){
           s.hit = true;
           addLog('You sidestepped the slam!', 'x');
@@ -3729,6 +3857,7 @@ function saveGame(){
       inventory:JSON.parse(JSON.stringify(inventory)),
       storageSlots:JSON.parse(JSON.stringify(storageSlots)),
       equippedWeaponId:equippedWeapon.id,
+      equippedArmour:JSON.parse(JSON.stringify(equippedArmour)),
       score:player.score,
       dashUnlocked,
     };
@@ -3755,6 +3884,11 @@ function loadGame(){
     }
     if(data.equippedWeaponId&&WEAPONS[data.equippedWeaponId]){
       equippedWeapon=WEAPONS[data.equippedWeaponId];
+    }
+    if(data.equippedArmour){
+      for(const slot in equippedArmour){
+        if(data.equippedArmour[slot]&&ITEM_DEFS[data.equippedArmour[slot]]) equippedArmour[slot]=data.equippedArmour[slot];
+      }
     }
     if(typeof data.score==='number') player.score=data.score;
     if(data.dashUnlocked){dashUnlocked=true;const btn=document.getElementById('bDash');if(btn)btn.style.display='flex';}
