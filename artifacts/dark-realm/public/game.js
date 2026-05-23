@@ -1741,6 +1741,178 @@ for(let i=0;i<3;i++){
   makeEnemy(Math.cos(a)*r,Math.sin(a)*r,4);
 }
 
+// ── NAMED NPC FACTORY ──
+// Creates unique enemy meshes for skeleton / mage / archer
+function makeNamedNPC(x,z,type){
+  const g=new THREE.Group();
+  let maxHp,spd,aggroRange,pattern,name,tier,glowCol;
+
+  if(type==='skeleton'){
+    maxHp=20;spd=0.42;aggroRange=22;pattern='slam';tier=2;name='Skeleton Warrior';glowCol=0x441100;
+    const bone=new THREE.MeshLambertMaterial({color:0xddd5b8});
+    const dark=new THREE.MeshLambertMaterial({color:0x998f78});
+    const eyeM=new THREE.MeshLambertMaterial({color:0xff2200,emissive:0xcc1100,emissiveIntensity:1.6});
+    const rustM=new THREE.MeshLambertMaterial({color:0x886644});
+    const hiltM=new THREE.MeshLambertMaterial({color:0x553322});
+    // Torso
+    const torso=new THREE.Mesh(new THREE.BoxGeometry(.60,.72,.36),bone);
+    torso.position.y=1.32;torso.castShadow=true;g.add(torso);
+    // Ribs
+    for(let r=0;r<3;r++){
+      const rib=new THREE.Mesh(new THREE.BoxGeometry(.56,.07,.1),dark);
+      rib.position.set(0,1.18+r*.2,.21);g.add(rib);
+    }
+    // Spine
+    const spine=new THREE.Mesh(new THREE.BoxGeometry(.1,.72,.06),dark);
+    spine.position.set(0,1.32,-.2);g.add(spine);
+    // Head
+    const head=new THREE.Mesh(new THREE.BoxGeometry(.50,.46,.47),bone);
+    head.position.y=1.98;head.castShadow=true;g.add(head);
+    // Jaw
+    const jaw=new THREE.Mesh(new THREE.BoxGeometry(.40,.13,.38),bone);
+    jaw.position.set(0,1.72,.03);g.add(jaw);
+    // Eye sockets
+    [-1,1].forEach(s=>{
+      const eye=new THREE.Mesh(new THREE.BoxGeometry(.13,.1,.06),eyeM);
+      eye.position.set(s*.13,2.01,.26);g.add(eye);
+    });
+    // Arms
+    [-1,1].forEach(s=>{
+      const arm=new THREE.Mesh(new THREE.BoxGeometry(.14,.63,.14),bone);
+      arm.position.set(s*.42,1.22,0);arm.castShadow=true;g.add(arm);
+      const hand=new THREE.Mesh(new THREE.BoxGeometry(.16,.16,.16),bone);
+      hand.position.set(s*.42,.86,0);g.add(hand);
+    });
+    // Legs
+    [-1,1].forEach(s=>{
+      const leg=new THREE.Mesh(new THREE.BoxGeometry(.16,.68,.16),bone);
+      leg.position.set(s*.18,.56,0);leg.castShadow=true;g.add(leg);
+      const foot=new THREE.Mesh(new THREE.BoxGeometry(.18,.1,.26),bone);
+      foot.position.set(s*.18,.18,.04);g.add(foot);
+    });
+    // Rusty sword
+    const blade=new THREE.Mesh(new THREE.BoxGeometry(.08,.62,.05),rustM);
+    blade.position.set(.54,.8,.1);blade.rotation.z=.1;g.add(blade);
+    const hilt=new THREE.Mesh(new THREE.BoxGeometry(.22,.07,.07),hiltM);
+    hilt.position.set(.54,1.07,.1);g.add(hilt);
+
+  } else if(type==='mage'){
+    maxHp=14;spd=0.28;aggroRange=30;pattern='orbit';tier=2;name='Bone Mage';glowCol=0x220055;
+    const robeM=new THREE.MeshLambertMaterial({color:0x1a0033});
+    const boneM=new THREE.MeshLambertMaterial({color:0xcfc8b0});
+    const eyeM2=new THREE.MeshLambertMaterial({color:0x00ccff,emissive:0x0088ff,emissiveIntensity:1.8});
+    const staffM=new THREE.MeshLambertMaterial({color:0x3a2a18});
+    const orbM=new THREE.MeshLambertMaterial({color:0x9900ff,emissive:0x6600cc,emissiveIntensity:1.3});
+    // Robe body
+    const robe=new THREE.Mesh(new THREE.CylinderGeometry(.22,.52,1.2,7),robeM);
+    robe.position.y=.72;robe.castShadow=true;g.add(robe);
+    // Chest
+    const chest=new THREE.Mesh(new THREE.BoxGeometry(.54,.58,.36),robeM);
+    chest.position.y=1.48;chest.castShadow=true;g.add(chest);
+    // Skull
+    const skull=new THREE.Mesh(new THREE.BoxGeometry(.47,.44,.45),boneM);
+    skull.position.y=2.02;skull.castShadow=true;g.add(skull);
+    // Eyes
+    [-1,1].forEach(s=>{
+      const eye=new THREE.Mesh(new THREE.SphereGeometry(.07,5,4),eyeM2);
+      eye.position.set(s*.12,2.06,.24);g.add(eye);
+    });
+    // Hood
+    const hood=new THREE.Mesh(new THREE.ConeGeometry(.31,.54,7),robeM);
+    hood.position.y=2.40;g.add(hood);
+    // Sleeves
+    [-1,1].forEach(s=>{
+      const sl=new THREE.Mesh(new THREE.CylinderGeometry(.09,.12,.55,5),robeM);
+      sl.position.set(s*.40,1.50,0);sl.rotation.z=s*.28;g.add(sl);
+    });
+    // Staff
+    const staffBody=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,1.62,5),staffM);
+    staffBody.position.set(.5,1.38,.06);staffBody.rotation.z=-.18;g.add(staffBody);
+    const staffOrb=new THREE.Mesh(new THREE.SphereGeometry(.15,7,6),orbM);
+    staffOrb.position.set(.66,2.22,.06);g.add(staffOrb);
+    // Magical orbit ring (animated)
+    const rg=new THREE.TorusGeometry(.96,.055,6,20);
+    const rm=new THREE.MeshBasicMaterial({color:0x9900ff,transparent:true,opacity:.65});
+    const ring=new THREE.Mesh(rg,rm);ring.position.y=1.08;g.add(ring);
+    g.userData.orbitRing=ring;
+
+  } else if(type==='archer'){
+    maxHp=16;spd=0.50;aggroRange=28;pattern='charge';tier=2;name='Skeleton Archer';glowCol=0x114400;
+    const boneA=new THREE.MeshLambertMaterial({color:0xd4c89a});
+    const leatM=new THREE.MeshLambertMaterial({color:0x5a3a1a});
+    const bowM=new THREE.MeshLambertMaterial({color:0x6b4a22});
+    const eyeM3=new THREE.MeshLambertMaterial({color:0x88ff44,emissive:0x44cc00,emissiveIntensity:1.4});
+    const arwM=new THREE.MeshLambertMaterial({color:0xccaa44});
+    // Slim torso
+    const torso=new THREE.Mesh(new THREE.BoxGeometry(.50,.68,.33),boneA);
+    torso.position.y=1.30;torso.castShadow=true;g.add(torso);
+    // Leather tunic
+    const tunic=new THREE.Mesh(new THREE.BoxGeometry(.52,.48,.27),leatM);
+    tunic.position.set(0,1.36,.04);g.add(tunic);
+    // Head
+    const head=new THREE.Mesh(new THREE.BoxGeometry(.45,.44,.43),boneA);
+    head.position.y=1.96;head.castShadow=true;g.add(head);
+    // Green glowing eyes
+    [-1,1].forEach(s=>{
+      const eye=new THREE.Mesh(new THREE.SphereGeometry(.07,5,4),eyeM3);
+      eye.position.set(s*.12,1.99,.23);g.add(eye);
+    });
+    // Bone cap
+    const cap=new THREE.Mesh(new THREE.CylinderGeometry(.25,.27,.18,6),boneA);
+    cap.position.y=2.26;g.add(cap);
+    // Arms
+    [-1,1].forEach(s=>{
+      const arm=new THREE.Mesh(new THREE.BoxGeometry(.13,.58,.13),boneA);
+      arm.position.set(s*.37,1.22,0);arm.castShadow=true;g.add(arm);
+    });
+    // Legs
+    [-1,1].forEach(s=>{
+      const leg=new THREE.Mesh(new THREE.BoxGeometry(.15,.70,.15),boneA);
+      leg.position.set(s*.17,.56,0);leg.castShadow=true;g.add(leg);
+    });
+    // Bow (left hand)
+    const bowArc=new THREE.TorusGeometry(.36,.04,5,12,Math.PI);
+    const bow=new THREE.Mesh(bowArc,bowM);
+    bow.position.set(-.44,1.32,.22);bow.rotation.y=Math.PI*.5;bow.rotation.x=.1;g.add(bow);
+    // Bowstring
+    const strGeo=new THREE.CylinderGeometry(.008,.008,.72,3);
+    const strM=new THREE.MeshLambertMaterial({color:0xddcc88});
+    const bowStr=new THREE.Mesh(strGeo,strM);
+    bowStr.position.set(-.44,1.32,.26);bowStr.rotation.z=Math.PI*.5;bowStr.rotation.y=Math.PI*.5;g.add(bowStr);
+    // Nocked arrow
+    const arrowM=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.70,4),arwM);
+    arrowM.position.set(-.44,1.42,.22);arrowM.rotation.z=Math.PI*.5;arrowM.rotation.y=Math.PI*.5;g.add(arrowM);
+    // Quiver (back)
+    const quiver=new THREE.Mesh(new THREE.CylinderGeometry(.08,.07,.44,6),leatM);
+    quiver.position.set(.28,1.40,-.20);quiver.rotation.z=.18;g.add(quiver);
+  }
+
+  // Shared HP bar
+  const sc=1.0;
+  const hpBg=new THREE.Mesh(new THREE.PlaneGeometry(1.5*sc,.16),new THREE.MeshBasicMaterial({color:0x330000,side:THREE.DoubleSide}));
+  hpBg.position.y=2.78;hpBg.rotation.x=-Math.PI*.18;g.add(hpBg);
+  const hpFg=new THREE.Mesh(new THREE.PlaneGeometry(1.5*sc,.16),new THREE.MeshBasicMaterial({color:0xcc1111,side:THREE.DoubleSide}));
+  hpFg.position.set(0,2.78,.01);hpFg.rotation.x=-Math.PI*.18;g.add(hpFg);
+  // Glow
+  const glow=new THREE.PointLight(glowCol,.7,6);glow.position.y=1.2;g.add(glow);
+
+  g.position.set(x,0,z);
+  g.userData={
+    hp:maxHp,maxHp,speed:spd,aggroRange,
+    vx:0,vz:0,
+    attackCd:3+Math.random()*2,
+    dead:false,tier,hpFg,hpBg,sc,
+    attackDmg:tier,pattern,name,
+    npcType:type,spawnX:x,spawnZ:z,
+  };
+  scene.add(g);enemies.push(g);
+}
+
+// Spawn the three named NPCs just east of the safe zone
+makeNamedNPC(52, 0,   'skeleton');
+makeNamedNPC(48, -12, 'mage');
+makeNamedNPC(48,  12, 'archer');
+
 // ── PLAYER MESH ──
 const PG=new THREE.Group();
 const pbody=new THREE.Mesh(new THREE.BoxGeometry(.7,1.0,.5),M.player);
@@ -2063,9 +2235,10 @@ function doAttack(){
         gainXp('slayer',25*e.userData.tier);
         addLog(`${e.userData.name} slain! Loot dropped.`,'x');
         showNotif(`SLAIN — ${100*e.userData.tier} pts`);
+        const _type=e.userData.npcType,_sx=e.userData.spawnX,_sz=e.userData.spawnZ;
         setTimeout(()=>{
-          const a=Math.random()*Math.PI*2,r=rnd(18,180);
-          makeEnemy(Math.cos(a)*r,Math.sin(a)*r);
+          if(_type){ makeNamedNPC(_sx,_sz,_type); }
+          else { const a=Math.random()*Math.PI*2,r=rnd(18,180); makeEnemy(Math.cos(a)*r,Math.sin(a)*r); }
         },20000);
       }
       player.attackCd=w.speed;
