@@ -491,13 +491,13 @@ function useItem(id,slot){
   if(id==='healthHrb'){
     player.hp=Math.min(player.maxHp,player.hp+10);
     inventory[slot].qty--;if(inventory[slot].qty<=0)inventory[slot]=null;
-    addLog('Used Health Herb. +10 HP','h');showNotif('+10 HP RESTORED');
+    addLog('Used Health Herb. +10 HP','h');showNotif('+10 HP RESTORED');clearLockTarget();
     spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),10,'hs-h');
     if(panelOpen)renderPanel();
   } else if(id==='healthPot'){
     player.hp=player.maxHp;
     inventory[slot].qty--;if(inventory[slot].qty<=0)inventory[slot]=null;
-    addLog('Drank Health Potion. Full HP restored.','h');showNotif('❤️ FULL HP RESTORED');
+    addLog('Drank Health Potion. Full HP restored.','h');showNotif('❤️ FULL HP RESTORED');clearLockTarget();
     spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),player.maxHp,'hs-h');
     if(panelOpen)renderPanel();
   } else if(id==='bone'){
@@ -1557,6 +1557,31 @@ document.getElementById('talkPromptTest').addEventListener('touchend', e=>{ e.pr
 // ── ENEMIES ──
 // Tiered by distance from spawn — 3/4 hits near spawn, stronger further out
 const enemies=[];
+
+// ── LOCK-ON TARGETING ──
+let lockedTarget=null;
+let lockRingMesh=null;
+function getLockRing(){
+  if(!lockRingMesh){
+    const geo=new THREE.RingGeometry(0.65,0.92,40);
+    const mat=new THREE.MeshBasicMaterial({color:0xddcc44,transparent:true,opacity:0.4,side:THREE.DoubleSide,depthWrite:false});
+    lockRingMesh=new THREE.Mesh(geo,mat);
+    lockRingMesh.rotation.x=-Math.PI/2;
+    scene.add(lockRingMesh);
+  }
+  return lockRingMesh;
+}
+function setLockTarget(e){
+  lockedTarget=e;
+  const ring=getLockRing();
+  ring.visible=true;
+  ring.position.set(e.position.x,0.06,e.position.z);
+  showNotif(`🎯 ${e.userData.name}`);
+}
+function clearLockTarget(){
+  lockedTarget=null;
+  if(lockRingMesh)lockRingMesh.visible=false;
+}
 const NPC_NAMES=['Shade','Wraith','Revenant','Banshee','Spectre','Lich','Ghoul','Wight'];
 
 // Attack pattern types: 'slam' | 'charge' | 'orbit' | 'summon_ring'
@@ -2754,6 +2779,22 @@ const mouse2=new THREE.Vector2();
 function tryPickupLoot(cx,cy){
   mouse2.x=(cx/innerWidth)*2-1;mouse2.y=-(cy/innerHeight)*2+1;
   raycaster.setFromCamera(mouse2,camera);
+  // Check enemies first — tap to lock on / release
+  const eMeshes=[];const eMeshMap=new Map();
+  for(const e of enemies){
+    if(e.userData.dead)continue;
+    e.traverse(child=>{if(child.isMesh&&child.visible){eMeshes.push(child);eMeshMap.set(child,e);}});
+  }
+  const eHits=raycaster.intersectObjects(eMeshes,false);
+  if(eHits.length){
+    const tgt=eMeshMap.get(eHits[0].object);
+    if(tgt){
+      if(lockedTarget===tgt){clearLockTarget();showNotif('🎯 Target released');}
+      else setLockTarget(tgt);
+      return;
+    }
+  }
+  // Otherwise try to pick up loot
   const meshes=groundLoot.filter(l=>!l.group.userData.picked).map(l=>l.group.children[0]);
   const hits=raycaster.intersectObjects(meshes,false);
   if(!hits.length)return;
@@ -2871,6 +2912,7 @@ function spawnLightningBolt(x,z,angle){
 
 function doDash(){
   if(!dashUnlocked||player.dashCd>0||playerDead||player.hp<=0)return;
+  clearLockTarget();
   player.dashImpX=Math.sin(player.angle)*DASH_SPEED;
   player.dashImpZ=Math.cos(player.angle)*DASH_SPEED;
   player.dashTimer=DASH_DUR;player.dashing=true;player.dashCd=DASH_CD;
@@ -2885,14 +2927,15 @@ function doDash(){
   showNotif('⚡ DASH!');
 }
 
-function doAttack(){
-  if(player.attackCd>0){showNotif(`Next attack in ${player.attackCd.toFixed(1)}s`);return;}
+function doAttack(forcedTarget){
+  if(player.attackCd>0){if(!forcedTarget)showNotif(`Next attack in ${player.attackCd.toFixed(1)}s`);return;}
   const w=equippedWeapon;
   let hit=false;
-  for(const e of enemies){
-    if(e.userData.dead)continue;
+  const atkList=forcedTarget?[forcedTarget]:enemies;
+  for(const e of atkList){
+    if(e.userData.dead){if(forcedTarget)clearLockTarget();continue;}
     const dx=e.position.x-player.x,dz=e.position.z-player.z;
-    if(Math.hypot(dx,dz)<5.5){
+    if(forcedTarget||Math.hypot(dx,dz)<5.5){
       const chance=weaponHitChance(w);
       const maxHit=weaponMaxHit(w);
       const dmg=Math.random()<chance?Math.ceil(Math.random()*maxHit):0;
@@ -2915,6 +2958,7 @@ function doAttack(){
       e.userData.hpFg.position.x=(hr-1)*.75*e.userData.sc;
       if(e.userData.hp<=0){
         e.userData.dead=true;
+        if(lockedTarget===e)clearLockTarget();
         if(e.userData.nameLabel) e.userData.nameLabel.style.display='none';
         // Drop loot
         const table=LOOT_TABLES[Math.min(e.userData.tier,4)]||LOOT_TABLES[1];
@@ -2944,7 +2988,7 @@ function doAttack(){
       hit=true;break;
     }
   }
-  if(!hit)showNotif('NO ENEMY IN RANGE');
+  if(!hit&&!forcedTarget)showNotif('NO ENEMY IN RANGE');
 }
 
 // Weapon attack animation
@@ -3312,6 +3356,25 @@ function update(){
   if(keys['ArrowLeft']||keys['a']||keys['A']){moveX-=Math.cos(camState.yaw); moveZ+=Math.sin(camState.yaw);}
   if(keys['ArrowRight']||keys['d']||keys['D']){moveX+=Math.cos(camState.yaw); moveZ-=Math.sin(camState.yaw);}
   if(keys[' '])doJump();
+
+  // Cancel lock-on when manual movement input detected
+  const hasManualInput=(joy.active&&joy.mag>.08)||(keys['w']||keys['W']||keys['s']||keys['S']||keys['a']||keys['A']||keys['d']||keys['D']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']);
+  if(lockedTarget&&hasManualInput)clearLockTarget();
+  // Lock-on: auto walk toward target and auto attack when in range
+  if(lockedTarget){
+    if(lockedTarget.userData.dead){clearLockTarget();}
+    else{
+      const tx=lockedTarget.position.x-player.x,tz=lockedTarget.position.z-player.z;
+      const td=Math.hypot(tx,tz);
+      const LOCK_STOP=3.2;
+      if(td>LOCK_STOP){moveX=tx/td;moveZ=tz/td;}
+      else doAttack(lockedTarget);
+      if(td>0.2)player.angle=Math.atan2(tx/td,tz/td);
+      const ring=getLockRing();
+      ring.position.set(lockedTarget.position.x,getGroundY(lockedTarget.position.x,lockedTarget.position.z)+0.06,lockedTarget.position.z);
+      ring.material.opacity=0.2+0.2*Math.abs(Math.sin(now*5));
+    }
+  }
 
   const len=Math.hypot(moveX,moveZ);
   const sprinting=(isSprinting||keys['Shift'])&&player.runEnergy>0;
