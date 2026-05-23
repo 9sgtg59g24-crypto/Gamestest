@@ -1561,7 +1561,6 @@ const enemies=[];
 // ── LOCK-ON TARGETING ──
 let lockedTarget=null;
 let lockRingMesh=null;
-let lockOnTime=-9999;
 function getLockRing(){
   if(!lockRingMesh){
     const geo=new THREE.RingGeometry(0.65,0.92,40);
@@ -1574,7 +1573,6 @@ function getLockRing(){
 }
 function setLockTarget(e){
   lockedTarget=e;
-  lockOnTime=performance.now();
   const ring=getLockRing();
   ring.visible=true;
   ring.position.set(e.position.x,0.06,e.position.z);
@@ -2778,7 +2776,12 @@ document.addEventListener('mouseup',e=>{if(mDrag&&!mMoved)tryPickupLoot(e.client
 // Raycaster for loot pickup
 const raycaster=new THREE.Raycaster();
 const mouse2=new THREE.Vector2();
+let lastTapMs=0;
 function tryPickupLoot(cx,cy){
+  // 300 ms debounce — prevents ghost/bounced touch events from toggling lock twice
+  const nowMs=performance.now();
+  if(nowMs-lastTapMs<300)return;
+  lastTapMs=nowMs;
   mouse2.x=(cx/innerWidth)*2-1;mouse2.y=-(cy/innerHeight)*2+1;
   raycaster.setFromCamera(mouse2,camera);
   // Check enemies first — tap to lock on / release
@@ -3359,24 +3362,23 @@ function update(){
   if(keys['ArrowRight']||keys['d']||keys['D']){moveX+=Math.cos(camState.yaw); moveZ-=Math.sin(camState.yaw);}
   if(keys[' '])doJump();
 
-  // Cancel lock-on on manual movement — but only after a 500ms grace window
-  // (prevents the joystick being still-active from a simultaneous multi-touch clearing the lock)
-  const hasManualInput=(joy.active&&joy.mag>.08)||(keys['w']||keys['W']||keys['s']||keys['S']||keys['a']||keys['A']||keys['d']||keys['D']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']);
-  if(lockedTarget&&hasManualInput&&(performance.now()-lockOnTime)>500)clearLockTarget();
-  // Lock-on: only walk toward target when attack cooldown is ready — gives
-  // the "attack → stand and wait → walk in → attack" rhythm
+  // Lock-on system — movement input does NOT cancel the lock; it just overrides
+  // the auto-walk direction while the lock stays active.
   if(lockedTarget){
     if(lockedTarget.userData.dead){clearLockTarget();}
     else{
       const tx=lockedTarget.position.x-player.x,tz=lockedTarget.position.z-player.z;
       const td=Math.hypot(tx,tz);
       const LOCK_STOP=3.2;
-      // Always face the locked target
-      if(td>0.2)player.angle=Math.atan2(tx/td,tz/td);
-      // Move and attack only when ready — creates the wait-then-advance rhythm
-      if(player.attackCd<=0){
-        if(td>LOCK_STOP){moveX=tx/td;moveZ=tz/td;}
-        else doAttack(lockedTarget);
+      const manualSteering=(joy.active&&joy.mag>.08)||(keys['w']||keys['W']||keys['s']||keys['S']||keys['a']||keys['A']||keys['d']||keys['D']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']);
+      // Face target when not manually steering
+      if(!manualSteering&&td>0.2)player.angle=Math.atan2(tx/td,tz/td);
+      // Auto-attack when in range regardless of manual steering
+      if(player.attackCd<=0&&td<=LOCK_STOP){
+        doAttack(lockedTarget);
+      } else if(!manualSteering&&player.attackCd<=0&&td>LOCK_STOP){
+        // Auto-walk only when attack ready and player isn't manually steering
+        moveX=tx/td;moveZ=tz/td;
       }
       const ring=getLockRing();
       ring.position.set(lockedTarget.position.x,getGroundY(lockedTarget.position.x,lockedTarget.position.z)+0.06,lockedTarget.position.z);
