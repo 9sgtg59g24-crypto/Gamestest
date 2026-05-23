@@ -1785,15 +1785,77 @@ function spawnDashGhost(){
   g.position.copy(PG.position);g.rotation.copy(PG.rotation);
   scene.add(g);dashGhosts.push({g,mat,life:.4});
 }
+const lightningBolts=[];
+let dashBoltTimer=0;
+
+function spawnLightningBolt(x,z,angle){
+  const BOLT_LEN=6,SEGS=12;
+  const perpX=Math.cos(angle),perpZ=-Math.sin(angle);
+  const pts=[];
+  for(let i=0;i<=SEGS;i++){
+    const t=i/SEGS;
+    const bx=x-Math.sin(angle)*t*BOLT_LEN;
+    const bz=z-Math.cos(angle)*t*BOLT_LEN;
+    const jitter=(Math.random()-.5)*.8;
+    pts.push(new THREE.Vector3(
+      bx+perpX*jitter,
+      getGroundY(bx,bz)+.3+Math.random()*1.3,
+      bz+perpZ*jitter
+    ));
+  }
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const mat=new THREE.LineBasicMaterial({color:0x55ddff,transparent:true,opacity:.95});
+  const line=new THREE.Line(geo,mat);scene.add(line);
+
+  // Branch forks
+  const branches=[];
+  for(let b=0;b<2;b++){
+    const si=2+Math.floor(Math.random()*(SEGS-3));
+    const bp=pts[si];
+    const bpts=[bp.clone()];
+    for(let k=0;k<3;k++){
+      const jb=(Math.random()-.5)*1.4,tb=(Math.random()-.5)*.8;
+      bpts.push(new THREE.Vector3(
+        bp.x+perpX*jb-Math.sin(angle)*tb,
+        bp.y-k*.15+Math.random()*.4,
+        bp.z+perpZ*jb-Math.cos(angle)*tb
+      ));
+    }
+    const bgeo=new THREE.BufferGeometry().setFromPoints(bpts);
+    const bmat=new THREE.LineBasicMaterial({color:0xaaeeff,transparent:true,opacity:.7});
+    const br=new THREE.Line(bgeo,bmat);scene.add(br);
+    branches.push({line:br,mat:bmat});
+  }
+
+  // Inner bright core line — slightly offset from main
+  const corePts=pts.map((p,i)=>{
+    const jc=(Math.random()-.5)*.18;
+    return new THREE.Vector3(p.x+perpX*jc,p.y,p.z+perpZ*jc);
+  });
+  const cgeo=new THREE.BufferGeometry().setFromPoints(corePts);
+  const cmat=new THREE.LineBasicMaterial({color:0xeefeff,transparent:true,opacity:.7});
+  const core=new THREE.Line(cgeo,cmat);scene.add(core);
+
+  // Glow light
+  const gl=new THREE.PointLight(0x33aaff,5,9);
+  gl.position.set(x,getGroundY(x,z)+1,z);scene.add(gl);
+
+  lightningBolts.push({line,mat,branches,core,cmat,gl,life:.28});
+}
+
 function doDash(){
   if(player.dashCd>0||playerDead||player.hp<=0)return;
   player.dashImpX=Math.sin(player.angle)*DASH_SPEED;
   player.dashImpZ=Math.cos(player.angle)*DASH_SPEED;
   player.dashTimer=DASH_DUR;player.dashing=true;player.dashCd=DASH_CD;
+  dashBoltTimer=0;
   spawnDashGhost();
-  const bl=new THREE.PointLight(0x44ccff,5,12);
+  // Initial burst
+  spawnLightningBolt(player.x,player.z,player.angle);
+  spawnLightningBolt(player.x,player.z,player.angle);
+  const bl=new THREE.PointLight(0x44ccff,8,14);
   bl.position.set(player.x,getGroundY(player.x,player.z)+1,player.z);
-  scene.add(bl);setTimeout(()=>scene.remove(bl),180);
+  scene.add(bl);setTimeout(()=>scene.remove(bl),220);
   showNotif('⚡ DASH!');
 }
 
@@ -2235,7 +2297,13 @@ function update(){
       const frac=player.dashTimer/DASH_DUR;
       player.x+=player.dashImpX*frac*dt;
       player.z+=player.dashImpZ*frac*dt;
-      legPhase+=dt*18; // fast leg blur during dash
+      legPhase+=dt*18;
+      // Spawn lightning along trail
+      dashBoltTimer-=dt;
+      if(dashBoltTimer<=0){
+        spawnLightningBolt(player.x,player.z,player.angle);
+        dashBoltTimer=0.05;
+      }
     } else { player.dashing=false;player.dashImpX=player.dashImpZ=0; }
   }
   if(player.dashCd>0)player.dashCd=Math.max(0,player.dashCd-dt);
@@ -2244,6 +2312,20 @@ function update(){
     const dg=dashGhosts[i];dg.life-=dt;
     dg.mat.opacity=Math.max(0,(dg.life/.4)*.5);
     if(dg.life<=0){scene.remove(dg.g);dashGhosts.splice(i,1);}
+  }
+  // Lightning bolt fade
+  for(let i=lightningBolts.length-1;i>=0;i--){
+    const lb=lightningBolts[i];lb.life-=dt;
+    const a=Math.max(0,lb.life/.28);
+    lb.mat.opacity=a*.95;
+    lb.cmat.opacity=a*.7;
+    lb.gl.intensity=a*5;
+    for(const br of lb.branches)br.mat.opacity=a*.7;
+    if(lb.life<=0){
+      scene.remove(lb.line);scene.remove(lb.core);scene.remove(lb.gl);
+      for(const br of lb.branches)scene.remove(br.line);
+      lightningBolts.splice(i,1);
+    }
   }
   // Dash button cooldown label
   const bDE=document.getElementById('bDash');
