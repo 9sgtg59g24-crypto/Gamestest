@@ -1848,6 +1848,317 @@ function updateShots(dt){
   }
 }
 
+// ════════════════════════════════════════════════════
+// ── SUPREME MAGE BOSS SYSTEMS ──
+// ════════════════════════════════════════════════════
+
+// ── LIGHTNING BOLT PROJECTILE ──
+const activeLightningBolts = [];
+const BOLT_SPEED   = 26;
+const BOLT_MAXDIST = 44;
+
+function fireLightningBolt(boss, tx, tz, spreadAngle){
+  spreadAngle = spreadAngle || 0;
+  const sx = boss.position.x, sy = boss.position.y + 2.25, sz2 = boss.position.z;
+  const dx = tx - sx, dz = tz - sz2;
+  const ang = Math.atan2(dx, dz) + spreadAngle;
+  const dirX = Math.sin(ang), dirZ = Math.cos(ang);
+
+  // Jagged bolt geometry using TubeGeometry + CatmullRomCurve3
+  const pts = [];
+  const segs = 7, blen = 1.7;
+  for(let k = 0; k <= segs; k++){
+    const t = k / segs;
+    const jx = (k > 0 && k < segs) ? (Math.random()-0.5)*0.30 : 0;
+    const jy = (k > 0 && k < segs) ? (Math.random()-0.5)*0.16 : 0;
+    pts.push(new THREE.Vector3(jx, jy, t * blen));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const boltMat = new THREE.MeshBasicMaterial({color:0x4499ff, transparent:true, opacity:0.95, depthWrite:false});
+  const boltMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, 0.036, 4, false), boltMat);
+  const glowMat  = new THREE.MeshBasicMaterial({color:0x99ccff, transparent:true, opacity:0.30, depthWrite:false});
+  const glowMesh = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, 0.12, 5, false), glowMat);
+
+  const grp = new THREE.Group();
+  grp.add(boltMesh); grp.add(glowMesh);
+  grp.position.set(sx, sy, sz2);
+  grp.rotation.y = ang;
+  scene.add(grp);
+
+  activeLightningBolts.push({grp, boltMat, glowMat, dirX, dirZ, hit:false, traveled:0});
+}
+
+function updateLightningBolts(dt){
+  for(let i = activeLightningBolts.length-1; i >= 0; i--){
+    const b = activeLightningBolts[i];
+    const step = BOLT_SPEED * dt;
+    b.grp.position.x += b.dirX * step;
+    b.grp.position.z += b.dirZ * step;
+    b.grp.position.y = 2.25 + Math.sin(b.traveled * 14) * 0.08; // arc jitter
+    b.traveled += step;
+    if(!b.hit){
+      const d = Math.hypot(player.x - b.grp.position.x, player.z - b.grp.position.z);
+      if(d < 1.0){
+        b.hit = true;
+        const dmg = 5 + Math.floor(Math.random()*7);
+        player.hp = Math.max(0, player.hp - dmg);
+        gainXp('defence', dmg*2);
+        spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)), dmg, 'hs-p');
+        addLog(`Supreme Mage's lightning strikes you for ${dmg}!`, 'd');
+        scene.remove(b.grp); activeLightningBolts.splice(i, 1); continue;
+      }
+    }
+    if(b.traveled >= BOLT_MAXDIST){ scene.remove(b.grp); activeLightningBolts.splice(i, 1); }
+  }
+}
+
+// ── BOSS SPECIAL ATTACKS ──
+const activeBossSpecials = [];
+
+// Special 1 — Triple Bolt Barrage
+function startTripleBoltBarrage(boss){
+  addLog('Supreme Mage charges a lightning barrage!', 'd');
+  showNotif('⚠ BARRAGE — KEEP MOVING!');
+  activeBossSpecials.push({type:'barrage', boss, timer:0, firedPhases:new Set()});
+}
+
+// Special 2 — Sky Lightning
+const SKY_WINDUP = 1.6;
+const SKY_COUNT  = 6;
+
+function startSkyLightning(boss){
+  addLog('Supreme Mage calls lightning from the sky!', 'd');
+  showNotif('⚠ DODGE THE BLUE CIRCLES!');
+  const indicators = [];
+  for(let k = 0; k < SKY_COUNT; k++){
+    const a = (k / SKY_COUNT) * Math.PI * 2 + Math.random() * 0.55;
+    const r = 1.4 + Math.random() * 7;
+    const ix = player.x + Math.cos(a)*r, iz = player.z + Math.sin(a)*r;
+    // Ground ring indicator
+    const ringMat = new THREE.MeshBasicMaterial({color:0x4499ff, transparent:true, opacity:0.8, side:THREE.DoubleSide, depthWrite:false});
+    const ringMesh = new THREE.Mesh(new THREE.RingGeometry(0.28, 1.25, 10), ringMat);
+    ringMesh.rotation.x = -Math.PI/2; ringMesh.position.set(ix, 0.09, iz);
+    scene.add(ringMesh);
+    // Vertical beam (faint column showing strike target from sky)
+    const colMat = new THREE.MeshBasicMaterial({color:0x88ccff, transparent:true, opacity:0.14, depthWrite:false});
+    const colMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 20, 5), colMat);
+    colMesh.position.set(ix, 10, iz); scene.add(colMesh);
+    indicators.push({ringMesh, ringMat, colMesh, colMat, x:ix, z:iz, hit:false});
+  }
+  activeBossSpecials.push({type:'skyLightning', boss, timer:0, indicators, struck:false, flashMeshes:[]});
+}
+
+// Special 3 — Summon Skeleton Archers
+function startSpawnArchers(boss){
+  addLog('Supreme Mage summons Skeleton Archers!', 'd');
+  showNotif('⚠ ARCHERS SUMMONED — WATCH YOUR FLANKS!');
+  for(let k = 0; k < 5; k++){
+    const a = (k / 5) * Math.PI * 2;
+    makeNamedNPC(boss.position.x + Math.cos(a)*5.5, boss.position.z + Math.sin(a)*5.5, 'archer');
+  }
+}
+
+function updateBossSpecials(dt){
+  for(let i = activeBossSpecials.length-1; i >= 0; i--){
+    const s = activeBossSpecials[i];
+    s.timer += dt;
+
+    if(s.type === 'barrage'){
+      // 1 bolt at t=0, 2 spread bolts at t=0.5, 3 spread bolts at t=1.0
+      if(!s.firedPhases.has(0)){
+        s.firedPhases.add(0);
+        fireLightningBolt(s.boss, player.x, player.z, 0);
+      }
+      if(s.timer >= 0.5 && !s.firedPhases.has(1)){
+        s.firedPhases.add(1);
+        fireLightningBolt(s.boss, player.x, player.z, -0.24);
+        fireLightningBolt(s.boss, player.x, player.z,  0.24);
+      }
+      if(s.timer >= 1.0 && !s.firedPhases.has(2)){
+        s.firedPhases.add(2);
+        fireLightningBolt(s.boss, player.x, player.z, -0.38);
+        fireLightningBolt(s.boss, player.x, player.z,  0);
+        fireLightningBolt(s.boss, player.x, player.z,  0.38);
+      }
+      if(s.timer >= 1.65){ activeBossSpecials.splice(i, 1); }
+
+    } else if(s.type === 'skyLightning'){
+      // Pulse rings during windup
+      for(const ind of s.indicators){
+        ind.ringMat.opacity = 0.45 + 0.45*Math.abs(Math.sin(s.timer*Math.PI*3.5));
+        ind.colMat.opacity  = 0.10 + 0.10*Math.abs(Math.sin(s.timer*Math.PI*3.5));
+      }
+      // Strike!
+      if(!s.struck && s.timer >= SKY_WINDUP){
+        s.struck = true;
+        for(const ind of s.indicators){
+          scene.remove(ind.ringMesh); scene.remove(ind.colMesh);
+          // Flash column
+          const fMat = new THREE.MeshBasicMaterial({color:0xaaddff, transparent:true, opacity:0.92, depthWrite:false});
+          const fMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.22, 24, 6), fMat);
+          fMesh.position.set(ind.x, 12, ind.z); scene.add(fMesh);
+          // Point light
+          const fl = new THREE.PointLight(0x4499ff, 7, 9);
+          fl.position.set(ind.x, 1, ind.z); scene.add(fl);
+          s.flashMeshes.push({mesh:fMesh, mat:fMat}, {mesh:fl, mat:null, isLight:true});
+          // Damage
+          if(!ind.hit && Math.hypot(player.x-ind.x, player.z-ind.z) < 1.6){
+            ind.hit = true;
+            const dmg = 9 + Math.floor(Math.random()*10);
+            player.hp = Math.max(0, player.hp - dmg);
+            gainXp('defence', dmg*2);
+            spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)), dmg, 'hs-p');
+            addLog(`Sky lightning strikes you for ${dmg}!`, 'd');
+          }
+        }
+      }
+      if(s.struck){
+        const ft = s.timer - SKY_WINDUP;
+        for(const f of s.flashMeshes){
+          if(!f.isLight && f.mat) f.mat.opacity = Math.max(0, 0.92*(1-ft/0.55));
+          if(f.isLight) f.mesh.intensity = Math.max(0, 7*(1-ft/0.45));
+        }
+        if(ft >= 0.7){ for(const f of s.flashMeshes) scene.remove(f.mesh); activeBossSpecials.splice(i, 1); }
+      }
+    }
+    // spawnArchers is instant — no ongoing update needed
+  }
+}
+
+// ── SUPREME MAGE MESH FACTORY ──
+function makeBoss(x, z){
+  const g = new THREE.Group();
+  const robeMat  = new THREE.MeshLambertMaterial({color:0x08080f});
+  const darkMat  = new THREE.MeshLambertMaterial({color:0x050508});
+  const crackMat = new THREE.MeshLambertMaterial({color:0x00ff55, emissive:0x00cc33, emissiveIntensity:2.2});
+  const eyeMat   = new THREE.MeshLambertMaterial({color:0x00ff55, emissive:0x00dd22, emissiveIntensity:2.8});
+  const staffMat = new THREE.MeshLambertMaterial({color:0x150d28});
+  const orbMat   = new THREE.MeshLambertMaterial({color:0x00ff66, emissive:0x00bb33, emissiveIntensity:2.0});
+
+  // Robe body
+  const robe = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.78, 1.9, 8), robeMat);
+  robe.position.y = 0.95; robe.castShadow = true; g.add(robe);
+
+  // Chest
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.84, 0.50), robeMat);
+  chest.position.y = 1.90; chest.castShadow = true; g.add(chest);
+
+  // Green corruption cracks
+  const cracks = [
+    [0.12,0.72,0.39,0.24],[-0.22,1.12,0.27,-0.30],
+    [0.30,1.52,0.24, 0.50],[-0.06,0.44,0.40,-0.15],
+    [0.02,1.88,0.26, 0.22],[-0.30,1.68,0.28,-0.45],
+  ];
+  for(const [cx,cy,cz,rz] of cracks){
+    const c = new THREE.Mesh(new THREE.BoxGeometry(0.055,0.30,0.045), crackMat);
+    c.position.set(cx,cy,cz); c.rotation.z = rz; g.add(c);
+  }
+
+  // Skull head
+  const skull = new THREE.Mesh(new THREE.BoxGeometry(0.58,0.54,0.56), darkMat);
+  skull.position.y = 2.55; skull.castShadow = true; g.add(skull);
+  // Jaw
+  g.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.44,0.15,0.42), darkMat), {position:{x:0,y:2.26,z:0.04}}));
+  // Forehead crack
+  const fc = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.22,0.04), crackMat);
+  fc.position.set(0.08,2.72,0.30); fc.rotation.z=0.28; g.add(fc);
+  // Glowing eyes
+  [-1,1].forEach(s => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.09,6,5), eyeMat);
+    eye.position.set(s*0.15, 2.57, 0.30); g.add(eye);
+  });
+
+  // Tall pointed cowl
+  const hood = new THREE.Mesh(new THREE.ConeGeometry(0.38,0.92,8), robeMat);
+  hood.position.y = 3.15; g.add(hood);
+
+  // Shoulder pads + cracks
+  [-1,1].forEach(s => {
+    const pad = new THREE.Mesh(new THREE.SphereGeometry(0.22,6,5), robeMat);
+    pad.position.set(s*0.55, 2.10, 0); pad.scale.set(1,0.58,0.9); g.add(pad);
+    const sc2 = new THREE.Mesh(new THREE.BoxGeometry(0.05,0.18,0.04), crackMat);
+    sc2.position.set(s*0.56,2.04,0.12); sc2.rotation.z = s*0.48; g.add(sc2);
+    // Long sleeve
+    const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.10,0.14,0.78,5), robeMat);
+    sl.position.set(s*0.56,1.64,0); sl.rotation.z = s*0.32; g.add(sl);
+    // Bony hand + crack
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.10,5,4), darkMat);
+    hand.position.set(s*0.72,1.28,0); g.add(hand);
+    const hc = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.11,0.03), crackMat);
+    hc.position.set(s*0.72,1.22,0.06); g.add(hc);
+  });
+
+  // Staff
+  const staffBody = new THREE.Mesh(new THREE.CylinderGeometry(0.045,0.045,2.4,5), staffMat);
+  staffBody.position.set(-0.80,1.52,0.04); staffBody.rotation.z = 0.20; g.add(staffBody);
+  const stCrack = new THREE.Mesh(new THREE.BoxGeometry(0.04,0.35,0.04), crackMat);
+  stCrack.position.set(-0.86,1.72,0.04); stCrack.rotation.z=0.20; g.add(stCrack);
+  const staffOrb = new THREE.Mesh(new THREE.SphereGeometry(0.22,8,7), orbMat);
+  staffOrb.position.set(-0.98,2.78,0.04); g.add(staffOrb);
+
+  // Orbiting rings
+  const runeRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.92,0.045,5,28),
+    new THREE.MeshBasicMaterial({color:0x00ff55, transparent:true, opacity:0.72})
+  );
+  runeRing.position.y = 1.82; g.add(runeRing);
+
+  const runeRing2 = new THREE.Mesh(
+    new THREE.TorusGeometry(0.58,0.032,5,18),
+    new THREE.MeshBasicMaterial({color:0x4499ff, transparent:true, opacity:0.68})
+  );
+  runeRing2.position.y = 1.82; runeRing2.rotation.x = Math.PI/3; g.add(runeRing2);
+
+  // Boss HP bar (green, wider — sc=1.6 → width 2.4)
+  const sc = 1.6;
+  const hpBg = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.5*sc, 0.22),
+    new THREE.MeshBasicMaterial({color:0x110022, side:THREE.DoubleSide})
+  );
+  hpBg.position.y = 3.95; hpBg.rotation.x = -Math.PI*0.18; g.add(hpBg);
+  const hpFg = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.5*sc, 0.22),
+    new THREE.MeshBasicMaterial({color:0x00cc44, side:THREE.DoubleSide})
+  );
+  hpFg.position.set(0, 3.95, 0.01); hpFg.rotation.x = -Math.PI*0.18; g.add(hpFg);
+
+  // Glow light
+  const glow = new THREE.PointLight(0x00ff44, 1.4, 12); glow.position.y = 2.0; g.add(glow);
+
+  g.position.set(x, 0, z);
+
+  // DOM name label
+  const nLabel = document.createElement('div');
+  nLabel.className = 'enemy-label';
+  nLabel.textContent = '☠ Supreme Mage';
+  nLabel.style.color = '#00ff88';
+  nLabel.style.fontSize = '10px';
+  nLabel.style.letterSpacing = '2px';
+  nLabel.style.display = 'none';
+  document.body.appendChild(nLabel);
+
+  const maxHp = 200;
+  g.userData = {
+    hp:maxHp, maxHp,
+    speed:0.20, aggroRange:42,
+    vx:0, vz:0,
+    attackCd:0, dead:false,
+    tier:4, hpFg, hpBg, sc,
+    attackDmg:5, pattern:'boss',
+    name:'Supreme Mage',
+    isBoss:true,
+    basicCd:0.5,
+    specialCd:7.5,
+    specialIndex:0,
+    nameLabel:nLabel,
+    staffOrb, runeRing, runeRing2, glowLight:glow,
+    npcType:'supreme_mage',
+    spawnX:x, spawnZ:z,
+  };
+  scene.add(g); enemies.push(g);
+  return g;
+}
+
 function makeEnemy(x,z,forceTier){
   const dist=Math.hypot(x,z);
   const tier = forceTier || (dist<40 ? 1 : dist<90 ? 2 : dist<150 ? 3 : 4);
@@ -1972,6 +2283,9 @@ function makeEnemy(x,z,forceTier){
     else makeEnemy(x, z, m.tier);
   });
 }
+
+// ── SUPREME MAGE BOSS SPAWN ──
+makeBoss(0, -(SAFE_RADIUS + 20));
 
 // ── NAMED NPC FACTORY ──
 // Creates unique enemy meshes for skeleton / mage / archer
@@ -2995,9 +3309,19 @@ function update(){
       hpBg.rotation.y=angle-e.rotation.y;
       hpFg.rotation.y=angle-e.rotation.y;
     }
+    // Boss visual animations
+    if(e.userData.runeRing)  e.userData.runeRing.rotation.y  += dt*1.8;
+    if(e.userData.runeRing2) e.userData.runeRing2.rotation.z += dt*2.5;
+    if(e.userData.staffOrb){
+      const pulse = 0.85 + 0.18*Math.sin(now*4.5);
+      e.userData.staffOrb.scale.setScalar(pulse);
+    }
+    if(e.userData.glowLight){
+      e.userData.glowLight.intensity = 1.2 + 0.4*Math.sin(now*3.2);
+    }
     if(e.userData.nameLabel){
       const sc=e.userData.sc||1;
-      const labelWorldY=e.position.y+(e.userData.npcType?3.15:2.3*sc+0.42);
+      const labelWorldY=e.position.y+(e.userData.isBoss?4.3:e.userData.npcType?3.15:2.3*sc+0.42);
       const wp=new THREE.Vector3(e.position.x,labelWorldY,e.position.z);
       wp.project(camera);
       const dist=Math.hypot(player.x-e.position.x,player.z-e.position.z);
@@ -3096,6 +3420,8 @@ function update(){
   updateSwipes(dt);
   updateShots(dt);
   updateRingAtks(dt);
+  updateLightningBolts(dt);
+  updateBossSpecials(dt);
 
   // ── ENEMY AI ──
   // DAY  → single combat: only closest aggro'd enemy attacks
@@ -3120,6 +3446,13 @@ function update(){
       }
     }
     if(closest) activeEnemies.push(closest);
+    // Boss enemies are always active when in aggro range (day or night)
+    for(const e of enemies){
+      if(!e.userData.dead && e.userData.isBoss && !activeEnemies.includes(e)){
+        const bd = Math.hypot(player.x-e.position.x, player.z-e.position.z);
+        if(bd < e.userData.aggroRange) activeEnemies.push(e);
+      }
+    }
   }
 
   for(const e of enemies){
@@ -3150,6 +3483,7 @@ function update(){
       const ePat = e.userData.pattern || 'slam';
       const stopDist = ePat === 'shoot'
         ? e.userData.aggroRange * 0.72
+        : ePat === 'boss' ? 14
         : (isHordeNight ? 3.5 : 4.5);
       if(dist > stopDist){
         e.userData.vx += (dx/dist)*e.userData.speed*dt*2;
@@ -3177,6 +3511,29 @@ function update(){
     const alreadySwiping  = activeSwipes.some(s => s.enemy === e && s.phase !== 'fade');
     const alreadyShooting = activeShots.some(s => s.enemy === e && s.phase !== 'done');
     const busyAttacking = alreadySlamming||alreadyCharging||alreadyOrbiting||alreadyRinging||alreadySwiping||alreadyShooting;
+
+    // ── BOSS ATTACK LOGIC — skip normal dispatch ──
+    if(e.userData.isBoss){
+      e.userData.basicCd -= dt;
+      if(e.userData.basicCd <= 0 && dist < 40 && !playerInSafe){
+        fireLightningBolt(e, player.x, player.z, 0);
+        e.userData.basicCd = 0.75;
+      }
+      e.userData.specialCd -= dt;
+      if(e.userData.specialCd <= 0 && dist < 40 && !playerInSafe){
+        const bossSpecBusy = activeBossSpecials.some(s => s.boss === e);
+        if(!bossSpecBusy){
+          switch(e.userData.specialIndex){
+            case 0: startTripleBoltBarrage(e); break;
+            case 1: startSkyLightning(e); break;
+            case 2: startSpawnArchers(e); break;
+          }
+          e.userData.specialIndex = (e.userData.specialIndex+1) % 3;
+          e.userData.specialCd = 7.5;
+        }
+      }
+      continue;
+    }
 
     // Cap total concurrent slams to 2
     const totalActiveSlams = activeSlams.filter(s => s.phase !== 'fade').length;
