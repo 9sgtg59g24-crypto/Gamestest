@@ -1561,6 +1561,7 @@ const enemies=[];
 // ── LOCK-ON TARGETING ──
 let lockedTarget=null;
 let lockRingMesh=null;
+let lockOnTime=-9999;
 function getLockRing(){
   if(!lockRingMesh){
     const geo=new THREE.RingGeometry(0.65,0.92,40);
@@ -1573,6 +1574,7 @@ function getLockRing(){
 }
 function setLockTarget(e){
   lockedTarget=e;
+  lockOnTime=performance.now();
   const ring=getLockRing();
   ring.visible=true;
   ring.position.set(e.position.x,0.06,e.position.z);
@@ -3357,19 +3359,25 @@ function update(){
   if(keys['ArrowRight']||keys['d']||keys['D']){moveX+=Math.cos(camState.yaw); moveZ-=Math.sin(camState.yaw);}
   if(keys[' '])doJump();
 
-  // Cancel lock-on when manual movement input detected
+  // Cancel lock-on on manual movement — but only after a 500ms grace window
+  // (prevents the joystick being still-active from a simultaneous multi-touch clearing the lock)
   const hasManualInput=(joy.active&&joy.mag>.08)||(keys['w']||keys['W']||keys['s']||keys['S']||keys['a']||keys['A']||keys['d']||keys['D']||keys['ArrowUp']||keys['ArrowDown']||keys['ArrowLeft']||keys['ArrowRight']);
-  if(lockedTarget&&hasManualInput)clearLockTarget();
-  // Lock-on: auto walk toward target and auto attack when in range
+  if(lockedTarget&&hasManualInput&&(performance.now()-lockOnTime)>500)clearLockTarget();
+  // Lock-on: only walk toward target when attack cooldown is ready — gives
+  // the "attack → stand and wait → walk in → attack" rhythm
   if(lockedTarget){
     if(lockedTarget.userData.dead){clearLockTarget();}
     else{
       const tx=lockedTarget.position.x-player.x,tz=lockedTarget.position.z-player.z;
       const td=Math.hypot(tx,tz);
       const LOCK_STOP=3.2;
-      if(td>LOCK_STOP){moveX=tx/td;moveZ=tz/td;}
-      else doAttack(lockedTarget);
+      // Always face the locked target
       if(td>0.2)player.angle=Math.atan2(tx/td,tz/td);
+      // Move and attack only when ready — creates the wait-then-advance rhythm
+      if(player.attackCd<=0){
+        if(td>LOCK_STOP){moveX=tx/td;moveZ=tz/td;}
+        else doAttack(lockedTarget);
+      }
       const ring=getLockRing();
       ring.position.set(lockedTarget.position.x,getGroundY(lockedTarget.position.x,lockedTarget.position.z)+0.06,lockedTarget.position.z);
       ring.material.opacity=0.2+0.2*Math.abs(Math.sin(now*5));
