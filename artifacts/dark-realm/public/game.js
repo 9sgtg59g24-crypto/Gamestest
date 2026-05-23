@@ -1661,6 +1661,7 @@ const player={
   hp:100,maxHp:100,prayer:1,maxPrayer:1,runEnergy:100,
   score:0,jumping:false,attackCd:0,inCombat:false,combatTimer:0,
   speed:0.5,sprintMult:1.55,
+  dashCd:0,dashImpX:0,dashImpZ:0,dashTimer:0,dashing:false,
 };
 player.maxHp=skLv('hitpoints')*10;player.hp=player.maxHp;
 
@@ -1765,11 +1766,35 @@ document.getElementById('bSprint').addEventListener('mousedown',()=>isSprinting=
 document.getElementById('bSprint').addEventListener('mouseup',()=>isSprinting=false);
 document.getElementById('bAtk').addEventListener('touchstart',e=>{e.preventDefault();doAttack();},{passive:false});
 document.getElementById('bAtk').addEventListener('mousedown',doAttack);
+document.getElementById('bDash').addEventListener('touchstart',e=>{e.preventDefault();doDash();},{passive:false});
+document.getElementById('bDash').addEventListener('mousedown',doDash);
 
 function doJump(){
   if(!player.jumping&&player.runEnergy>10){
     player.jumping=true;player.vy=8;player.runEnergy=Math.max(0,player.runEnergy-12);
   }
+}
+
+const DASH_SPEED=80,DASH_DUR=0.30,DASH_CD=5.0;
+const dashGhosts=[];
+function spawnDashGhost(){
+  const mat=new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:.5,depthWrite:false});
+  const g=new THREE.Group();
+  const sil=new THREE.Mesh(new THREE.BoxGeometry(.72,1.85,.52),mat);
+  sil.position.y=.93;g.add(sil);
+  g.position.copy(PG.position);g.rotation.copy(PG.rotation);
+  scene.add(g);dashGhosts.push({g,mat,life:.4});
+}
+function doDash(){
+  if(player.dashCd>0||playerDead||player.hp<=0)return;
+  player.dashImpX=Math.sin(player.angle)*DASH_SPEED;
+  player.dashImpZ=Math.cos(player.angle)*DASH_SPEED;
+  player.dashTimer=DASH_DUR;player.dashing=true;player.dashCd=DASH_CD;
+  spawnDashGhost();
+  const bl=new THREE.PointLight(0x44ccff,5,12);
+  bl.position.set(player.x,getGroundY(player.x,player.z)+1,player.z);
+  scene.add(bl);setTimeout(()=>scene.remove(bl),180);
+  showNotif('⚡ DASH!');
 }
 
 function doAttack(){
@@ -2203,6 +2228,27 @@ function update(){
     if(sprinting)gainXp('agility',dt*1.5);
   } else { player.vx*=.7;player.vz*=.7; }
   player.x+=player.vx;player.z+=player.vz;
+  // Dash impulse
+  if(player.dashing){
+    player.dashTimer-=dt;
+    if(player.dashTimer>0){
+      const frac=player.dashTimer/DASH_DUR;
+      player.x+=player.dashImpX*frac*dt;
+      player.z+=player.dashImpZ*frac*dt;
+      legPhase+=dt*18; // fast leg blur during dash
+    } else { player.dashing=false;player.dashImpX=player.dashImpZ=0; }
+  }
+  if(player.dashCd>0)player.dashCd=Math.max(0,player.dashCd-dt);
+  // Dash ghost trail fade
+  for(let i=dashGhosts.length-1;i>=0;i--){
+    const dg=dashGhosts[i];dg.life-=dt;
+    dg.mat.opacity=Math.max(0,(dg.life/.4)*.5);
+    if(dg.life<=0){scene.remove(dg.g);dashGhosts.splice(i,1);}
+  }
+  // Dash button cooldown label
+  const bDE=document.getElementById('bDash');
+  if(bDE){if(player.dashCd>.05){bDE.textContent=player.dashCd.toFixed(1);bDE.classList.add('on-cd');}
+  else{bDE.textContent='DASH';bDE.classList.remove('on-cd');}}
   player.x=Math.max(-WORLD,Math.min(WORLD,player.x));
   player.z=Math.max(-WORLD,Math.min(WORLD,player.z));
   resolveCollisions();
