@@ -146,6 +146,8 @@ body{background:#000;overflow:hidden;width:100vw;height:100vh;}
 /* ── BANK PROMPT ── */
 #talkPromptBank{position:fixed;z-index:20;transform:translate(-50%,-100%);background:rgba(6,4,2,.92);border:1px solid rgba(60,140,220,.5);border-radius:6px;padding:5px 12px;font-family:'Cinzel',serif;font-size:8px;color:#4499dd;letter-spacing:1px;pointer-events:all;cursor:pointer;white-space:nowrap;display:none;box-shadow:0 0 12px rgba(40,100,200,.25);}
 #talkPromptBank:active{transform:translate(-50%,-100%) scale(.94);}
+#talkPromptTest{position:fixed;z-index:20;transform:translate(-50%,-100%);background:rgba(6,4,2,.92);border:1px solid rgba(160,80,220,.6);border-radius:6px;padding:5px 12px;font-family:'Cinzel',serif;font-size:8px;color:#cc66ff;letter-spacing:1px;pointer-events:all;cursor:pointer;white-space:nowrap;display:none;box-shadow:0 0 12px rgba(140,60,200,.35);}
+#talkPromptTest:active{transform:translate(-50%,-100%) scale(.94);}
 
 /* ── SHOP STYLES ── */
 .shop-gold{font-family:'Cinzel',serif;font-size:10px;color:#ddaa22;letter-spacing:1px;padding:6px 0 10px;border-bottom:1px solid rgba(160,120,40,.2);margin-bottom:8px;}

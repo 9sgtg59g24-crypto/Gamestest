@@ -1136,6 +1136,49 @@ const coinBangMesh = new THREE.Mesh(coinBangGeo, coinBangMat);
 coinBangMesh.position.set(ALDRIC_X, 3.7, ALDRIC_Z);
 scene.add(coinBangMesh);
 
+// ── TEST SHOP NPC ──
+const TEST_X = 10, TEST_Z = -6;
+// Purple-robed dev figure
+const testMats = {
+  robe: new THREE.MeshLambertMaterial({color:0x441166}),
+  skin: new THREE.MeshLambertMaterial({color:0xc8905a}),
+  trim: new THREE.MeshLambertMaterial({color:0xaa44ff}),
+  eye:  new THREE.MeshLambertMaterial({color:0x00ffaa}),
+};
+const testGroup = new THREE.Group();
+const tBody = new THREE.Mesh(new THREE.BoxGeometry(.65,1.05,.48), testMats.robe);
+tBody.position.y=1.22; tBody.castShadow=true; testGroup.add(tBody);
+const tTrim = new THREE.Mesh(new THREE.BoxGeometry(.67,.12,.5), testMats.trim);
+tTrim.position.y=.74; testGroup.add(tTrim);
+const tHead = new THREE.Mesh(new THREE.BoxGeometry(.52,.52,.52), testMats.skin);
+tHead.position.y=2.08; tHead.castShadow=true; testGroup.add(tHead);
+const tEyeL = new THREE.Mesh(new THREE.BoxGeometry(.1,.08,.06), testMats.eye);
+tEyeL.position.set(-.12,2.1,.28); testGroup.add(tEyeL);
+const tEyeR = tEyeL.clone(); tEyeR.position.set(.12,2.1,.28); testGroup.add(tEyeR);
+// Hood
+const tHood = new THREE.Mesh(new THREE.CylinderGeometry(.34,.38,.45,8), testMats.robe);
+tHood.position.y=2.32; testGroup.add(tHood);
+const tHoodBrim = new THREE.Mesh(new THREE.CylinderGeometry(.42,.42,.08,8), testMats.robe);
+tHoodBrim.position.y=2.1; testGroup.add(tHoodBrim);
+const tArmL = new THREE.Mesh(new THREE.BoxGeometry(.2,.7,.2), testMats.robe);
+tArmL.position.set(-.45,1.18,0); testGroup.add(tArmL);
+const tArmR = tArmL.clone(); tArmR.position.set(.45,1.18,0); testGroup.add(tArmR);
+const tLegL = new THREE.Mesh(new THREE.BoxGeometry(.26,.75,.26), testMats.robe);
+const tLegR = tLegL.clone();
+tLegL.position.set(-.17,.33,0); tLegR.position.set(.17,.33,0);
+testGroup.add(tLegL, tLegR);
+const testLight = new THREE.PointLight(0xaa44ff, 1.1, 7);
+testLight.position.y=2.5; testGroup.add(testLight);
+testGroup.position.set(TEST_X, 0, TEST_Z);
+testGroup.rotation.y = Math.PI * 1.1;
+scene.add(testGroup);
+// Floating flask above test NPC
+const testFlaskGeo = new THREE.SphereGeometry(.14, 6, 6);
+const testFlaskMat = new THREE.MeshBasicMaterial({color:0xcc66ff});
+const testFlaskMesh = new THREE.Mesh(testFlaskGeo, testFlaskMat);
+testFlaskMesh.position.set(TEST_X, 3.7, TEST_Z);
+scene.add(testFlaskMesh);
+
 // ── BANK CHEST (safe zone storage) ──
 {
   const bg = new THREE.Group();
@@ -1275,10 +1318,102 @@ function renderShop(){
   });
 }
 
-document.getElementById('dlgClose').addEventListener('click', ()=>{ closeDialogue(); closeMerchant(); });
-document.getElementById('dlgClose').addEventListener('touchend', e=>{ e.preventDefault(); closeDialogue(); closeMerchant(); },{passive:false});
+document.getElementById('dlgClose').addEventListener('click', ()=>{ closeDialogue(); closeMerchant(); closeTestShop(); });
+document.getElementById('dlgClose').addEventListener('touchend', e=>{ e.preventDefault(); closeDialogue(); closeMerchant(); closeTestShop(); },{passive:false});
 document.getElementById('talkPromptMerch').addEventListener('click', openMerchant);
 document.getElementById('talkPromptMerch').addEventListener('touchend', e=>{ e.preventDefault(); openMerchant(); },{passive:false});
+
+// ── TEST SHOP ──
+let testShopOpen = false;
+
+// Auto-stock: every item in ITEM_DEFS, qty 99, price 0 (free)
+function getTestStock(){
+  return Object.keys(ITEM_DEFS).map(id=>({id,qty:99}));
+}
+
+function openTestShop(){
+  testShopOpen = true;
+  dialogueOpen = true;
+  document.getElementById('dlgAvatar').textContent = '🧪';
+  document.getElementById('dlgName').textContent = 'ZARA';
+  document.getElementById('dlgTitle').textContent = 'TEST SHOP · ALL ITEMS · FREE';
+  document.getElementById('dialogueBox').classList.add('open');
+  document.getElementById('talkPromptTest').style.display = 'none';
+  renderTestShop();
+}
+
+function closeTestShop(){
+  testShopOpen = false;
+  dialogueOpen = false;
+  document.getElementById('dialogueBox').classList.remove('open');
+}
+
+function renderTestShop(){
+  let h = `<div class="shop-gold" style="color:#cc66ff">🧪 Test Shop — All items FREE</div>`;
+  h += `<div class="shop-list" style="max-height:320px">`;
+  // Give coins button at top
+  h += `<div class="shop-item">
+    <span class="shop-item-ico">🪙</span>
+    <div class="shop-item-info">
+      <div class="shop-item-name">Give 1000 Coins</div>
+      <div class="shop-item-desc">Add 1000 gold to your inventory.</div>
+    </div>
+    <button class="shop-btn" id="tsGiveCoins">GIVE</button>
+  </div>`;
+  // Unlock dash button
+  if(!dashUnlocked){
+    h += `<div class="shop-item">
+      <span class="shop-item-ico">⚡</span>
+      <div class="shop-item-info">
+        <div class="shop-item-name">Unlock Dash</div>
+        <div class="shop-item-desc">Instantly learn the Dash ability.</div>
+      </div>
+      <button class="shop-btn" id="tsUnlockDash">GIVE</button>
+    </div>`;
+  }
+  for(const s of getTestStock()){
+    const def = ITEM_DEFS[s.id]; if(!def) continue;
+    h += `<div class="shop-item">
+      <span class="shop-item-ico">${def.icon}</span>
+      <div class="shop-item-info">
+        <div class="shop-item-name">${def.name}</div>
+        <div class="shop-item-desc">${def.desc}</div>
+      </div>
+      <button class="shop-btn" style="background:rgba(140,40,200,.6);border-color:rgba(160,80,220,.5)" data-tsbuy="${s.id}">GET</button>
+    </div>`;
+  }
+  h += `</div>`;
+  h += `<button class="dlg-btn close-btn" id="tsClose" style="margin-top:12px">✕ Leave</button>`;
+  document.getElementById('dlgText').innerHTML = '';
+  document.getElementById('dlgOptions').innerHTML = h;
+
+  // Scroll
+  requestAnimationFrame(()=>{
+    const sl=document.querySelector('.shop-list');
+    if(!sl)return;
+    let sy=0,st=0;
+    sl.addEventListener('touchstart',e=>{sy=e.touches[0].clientY;st=sl.scrollTop;e.stopPropagation();},{passive:true});
+    sl.addEventListener('touchmove',e=>{sl.scrollTop=st+(sy-e.touches[0].clientY);e.stopPropagation();},{passive:true});
+  });
+
+  document.getElementById('tsClose').addEventListener('click', closeTestShop);
+  const gcBtn = document.getElementById('tsGiveCoins');
+  if(gcBtn) gcBtn.addEventListener('click',()=>{ addToInventory('coin',1000); saveGame(); addLog('🧪 +1000 coins given.','i'); showNotif('+1000 🪙'); renderTestShop(); });
+  const udBtn = document.getElementById('tsUnlockDash');
+  if(udBtn) udBtn.addEventListener('click',()=>{ unlockDash(); renderTestShop(); });
+  document.querySelectorAll('[data-tsbuy]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const id=btn.dataset.tsbuy; const def=ITEM_DEFS[id]; if(!def) return;
+      addToInventory(id,1);
+      addLog(`🧪 Got ${def.icon} ${def.name}.`,'i');
+      showNotif(`Got ${def.name}`);
+      saveGame();
+    });
+  });
+}
+
+document.getElementById('talkPromptTest').addEventListener('click', openTestShop);
+document.getElementById('talkPromptTest').addEventListener('touchend', e=>{ e.preventDefault(); openTestShop(); },{passive:false});
 
 // ── ENEMIES ──
 // Tiered by distance from spawn — 3/4 hits near spawn, stronger further out
@@ -2672,6 +2807,25 @@ function update(){
       talkElM.style.top  = sy+'px';
     }
   } else { talkElM.style.display = 'none'; }
+
+  // ── TEST SHOP NPC ANIMATION + TALK PROMPT ──
+  testGroup.rotation.y = Math.PI*1.1 + Math.sin(now*0.4)*0.06;
+  testLight.intensity = 1.0 + Math.sin(now*1.8)*0.35;
+  testFlaskMesh.position.y = 3.7 + Math.sin(now*2.6)*0.22;
+  testFlaskMesh.rotation.y += dt*2.5;
+  const testDist = Math.hypot(player.x - TEST_X, player.z - TEST_Z);
+  const talkElT = document.getElementById('talkPromptTest');
+  if(!dialogueOpen && testDist < 7){
+    const testPos = new THREE.Vector3(TEST_X, 3.0, TEST_Z);
+    testPos.project(camera);
+    if(testPos.z < 1){
+      const sx = (testPos.x*.5+.5)*innerWidth;
+      const sy = (-.5*testPos.y+.5)*innerHeight;
+      talkElT.style.display = 'block';
+      talkElT.style.left = sx+'px';
+      talkElT.style.top  = sy+'px';
+    }
+  } else { talkElT.style.display = 'none'; }
 
   // ── ORBIT RING ANIMATION ──
   for(const e of enemies){
