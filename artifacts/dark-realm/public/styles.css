@@ -102,7 +102,6 @@ body{background:#000;overflow:hidden;width:100vw;height:100vh;}
 .col{display:flex;flex-direction:column;gap:8px;align-items:center;}
 .btn{border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-weight:700;backdrop-filter:blur(8px);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .08s;}
 .btn:active{transform:scale(.83);}
-#bJump{width:58px;height:58px;font-size:8px;border-color:rgba(160,120,40,.6);background:rgba(160,120,40,.1);color:#c8a040;}
 #bSprint{width:44px;height:44px;font-size:7px;border-color:rgba(80,140,255,.5);background:rgba(80,140,255,.07);color:#80aaee;}
 #bAtk{width:44px;height:44px;font-size:7px;border-color:rgba(200,60,60,.6);background:rgba(200,60,60,.08);color:#dd5555;}
 #bDash{width:44px;height:44px;font-size:7px;border-color:rgba(60,220,255,.55);background:rgba(30,180,240,.07);color:#44ddff;letter-spacing:.5px;}

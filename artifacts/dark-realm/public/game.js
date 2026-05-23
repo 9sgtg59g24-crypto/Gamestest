@@ -1758,8 +1758,6 @@ window.addEventListener('keyup',e=>keys[e.key]=false);
 
 // Buttons
 let isSprinting=false;
-document.getElementById('bJump').addEventListener('touchstart',e=>{e.preventDefault();doJump();},{passive:false});
-document.getElementById('bJump').addEventListener('mousedown',doJump);
 document.getElementById('bSprint').addEventListener('touchstart',e=>{e.preventDefault();isSprinting=true;},{passive:false});
 document.getElementById('bSprint').addEventListener('touchend',e=>{e.preventDefault();isSprinting=false;},{passive:false});
 document.getElementById('bSprint').addEventListener('mousedown',()=>isSprinting=true);
