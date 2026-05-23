@@ -1621,6 +1621,204 @@ function updateRingAtks(dt){
   }
 }
 
+// ── SWIPE ATTACK (Skeleton Warrior — two horizontal scimitar slashes) ──
+const activeSwipes = [];
+const SWIPE_WINDUP = 0.48; // charge-up per swing
+const SWIPE_STRIKE = 0.16; // actual swipe duration
+const SWIPE_GAP    = 0.30; // pause between the two swings
+const SWIPE_RANGE  = 3.0;  // radius of danger zone
+
+function startSwipe(enemy){
+  const dx=player.x-enemy.position.x, dz=player.z-enemy.position.z;
+  const len=Math.hypot(dx,dz)||1;
+  const angle=Math.atan2(dx/len, dz/len);
+
+  function makeArc(thetaStart){
+    const geo=new THREE.RingGeometry(0.3, SWIPE_RANGE, 10, 1, thetaStart, Math.PI*1.15);
+    const mat=new THREE.MeshBasicMaterial({color:0xff3300,transparent:true,opacity:0.4,side:THREE.DoubleSide,depthWrite:false});
+    const mesh=new THREE.Mesh(geo,mat);
+    mesh.rotation.x=-Math.PI/2;
+    mesh.rotation.z=-angle;
+    mesh.position.set(enemy.position.x,0.06,enemy.position.z);
+    scene.add(mesh);
+    return {mesh,mat};
+  }
+  const arc1=makeArc(-Math.PI*0.05);  // right-side
+  const arc2=makeArc(-Math.PI*0.95);  // left-side
+  arc2.mesh.visible=false;
+
+  activeSwipes.push({enemy,phase:'windup1',timer:0,arc1,arc2,hit1:false,hit2:false});
+}
+
+function updateSwipes(dt){
+  for(let i=activeSwipes.length-1;i>=0;i--){
+    const s=activeSwipes[i]; s.timer+=dt;
+    const e=s.enemy;
+    const sg=e&&e.userData.swordGroup;
+    const alive=e&&!e.userData.dead;
+
+    if(s.phase==='windup1'){
+      if(sg&&alive) sg.rotation.z=0.1+(s.timer/SWIPE_WINDUP)*2.0;
+      s.arc1.mat.opacity=0.25+0.22*Math.abs(Math.sin(s.timer*Math.PI*6));
+      if(s.timer>=SWIPE_WINDUP){s.phase='strike1';s.timer=0;}
+
+    } else if(s.phase==='strike1'){
+      if(sg&&alive) sg.rotation.z=2.1-(s.timer/SWIPE_STRIKE)*4.2;
+      s.arc1.mat.opacity=Math.max(0,0.85*(1-s.timer/SWIPE_STRIKE));
+      if(!s.hit1){
+        const dist=Math.hypot(player.x-e.position.x,player.z-e.position.z);
+        if(dist<SWIPE_RANGE){
+          s.hit1=true;
+          const dmg=3+Math.floor(Math.random()*5);
+          player.hp=Math.max(0,player.hp-dmg);
+          gainXp('defence',dmg*2);
+          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),dmg,'hs-p');
+          addLog(`Skeleton Warrior slices you for ${dmg}!`,'d');
+        }
+      }
+      if(s.timer>=SWIPE_STRIKE){s.phase='gap';s.timer=0;}
+
+    } else if(s.phase==='gap'){
+      if(sg&&alive) sg.rotation.z=Math.max(0.1, 2.1-(s.timer/SWIPE_GAP)*2.0);
+      if(s.timer>=SWIPE_GAP){s.arc2.mesh.visible=true;s.phase='windup2';s.timer=0;}
+
+    } else if(s.phase==='windup2'){
+      if(sg&&alive) sg.rotation.z=0.1-(s.timer/SWIPE_WINDUP)*2.0;
+      s.arc2.mat.opacity=0.25+0.22*Math.abs(Math.sin(s.timer*Math.PI*6));
+      if(s.timer>=SWIPE_WINDUP){s.phase='strike2';s.timer=0;}
+
+    } else if(s.phase==='strike2'){
+      if(sg&&alive) sg.rotation.z=-1.9+(s.timer/SWIPE_STRIKE)*4.2;
+      s.arc2.mat.opacity=Math.max(0,0.85*(1-s.timer/SWIPE_STRIKE));
+      if(!s.hit2){
+        const dist=Math.hypot(player.x-e.position.x,player.z-e.position.z);
+        if(dist<SWIPE_RANGE){
+          s.hit2=true;
+          const dmg=3+Math.floor(Math.random()*5);
+          player.hp=Math.max(0,player.hp-dmg);
+          gainXp('defence',dmg*2);
+          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),dmg,'hs-p');
+          addLog(`Skeleton Warrior slices you again for ${dmg}!`,'d');
+        }
+      }
+      if(s.timer>=SWIPE_STRIKE){
+        if(sg&&alive) sg.rotation.z=0.1;
+        s.phase='fade';s.timer=0;
+      }
+    } else {
+      s.arc1.mat.opacity=0;s.arc2.mat.opacity=0;
+      if(s.timer>=0.35){
+        scene.remove(s.arc1.mesh);scene.remove(s.arc2.mesh);
+        activeSwipes.splice(i,1);
+      }
+    }
+  }
+}
+
+// ── SHOOT ATTACK (Skeleton Archer — bow charge then flying arrow) ──
+const activeShots = [];
+const SHOOT_CHARGE = 0.5;  // bow charge duration
+const ARROW_SPEED  = 18;   // units/sec in flight
+const ARROW_MAXDIST= 28;
+
+function startShoot(enemy){
+  // Green charge orb at the bow position (world space)
+  const cosY=Math.cos(enemy.rotation.y), sinY=Math.sin(enemy.rotation.y);
+  const bowWX=enemy.position.x - 0.44*sinY;
+  const bowWY=enemy.position.y + 1.42;
+  const bowWZ=enemy.position.z - 0.44*cosY;
+
+  const orbGeo=new THREE.SphereGeometry(0.09,6,5);
+  const orbMat=new THREE.MeshBasicMaterial({color:0x88ff44,transparent:true,opacity:0.9});
+  const orb=new THREE.Mesh(orbGeo,orbMat);
+  orb.position.set(bowWX,bowWY,bowWZ);
+  scene.add(orb);
+
+  // Arrow projectile mesh (dormant until shot)
+  const arwGeo=new THREE.CylinderGeometry(0.025,0.012,0.85,4);
+  const arwMat=new THREE.MeshBasicMaterial({color:0xbbaa44,transparent:true,opacity:0});
+  const arwMesh=new THREE.Mesh(arwGeo,arwMat);
+  arwMesh.position.set(bowWX,bowWY,bowWZ);
+  scene.add(arwMesh);
+
+  // Snapshot target position at the moment attack starts
+  const tx=player.x, tz=player.z;
+
+  activeShots.push({
+    enemy,phase:'charge',timer:0,
+    orb,orbMat,arwMesh,arwMat,
+    bowWX,bowWY,bowWZ,
+    tx,tz,dirX:0,dirZ:0,
+    hit:false,traveled:0,
+  });
+}
+
+function updateShots(dt){
+  for(let i=activeShots.length-1;i>=0;i--){
+    const s=activeShots[i]; s.timer+=dt;
+    const e=s.enemy;
+    const alive=e&&!e.userData.dead;
+
+    if(s.phase==='charge'){
+      const t=s.timer/SHOOT_CHARGE;
+      // Charge orb pulses and grows
+      const pulse=1+Math.sin(s.timer*Math.PI*10)*0.3+t*1.2;
+      s.orb.scale.setScalar(pulse);
+      s.orbMat.opacity=0.6+0.4*Math.abs(Math.sin(s.timer*Math.PI*8));
+      // Bowstring pull-back
+      if(alive&&e.userData.bowStr) e.userData.bowStr.scale.z=1+t*0.55;
+      // Hide nocked arrow during charge (it'll become the projectile)
+      if(alive&&e.userData.nockArrow) e.userData.nockArrow.visible=false;
+
+      if(s.timer>=SHOOT_CHARGE){
+        s.phase='fly';s.timer=0;
+        // Direction: bow → frozen target
+        const dx=s.tx-s.bowWX, dz=s.tz-s.bowWZ;
+        const len=Math.hypot(dx,dz)||1;
+        s.dirX=dx/len; s.dirZ=dz/len;
+        // Activate arrow, hide orb
+        s.orbMat.opacity=0;
+        s.arwMat.opacity=1;
+        s.arwMesh.position.set(s.bowWX,s.bowWY,s.bowWZ);
+        // Orient arrow along travel direction (cylinder axis = Y; rotate to lay along XZ)
+        s.arwMesh.rotation.x=Math.PI/2;
+        s.arwMesh.rotation.z=-Math.atan2(s.dirX,s.dirZ);
+        // Reset bowstring
+        if(alive&&e.userData.bowStr) e.userData.bowStr.scale.z=1;
+      }
+
+    } else if(s.phase==='fly'){
+      const step=ARROW_SPEED*dt;
+      s.arwMesh.position.x+=s.dirX*step;
+      s.arwMesh.position.z+=s.dirZ*step;
+      s.traveled+=step;
+      if(!s.hit){
+        const dist=Math.hypot(player.x-s.arwMesh.position.x,player.z-s.arwMesh.position.z);
+        if(dist<1.0){
+          s.hit=true;
+          const dmg=4+Math.floor(Math.random()*5);
+          player.hp=Math.max(0,player.hp-dmg);
+          gainXp('defence',dmg*2);
+          spawnHitsplat(PG.position.clone().add(new THREE.Vector3(0,2.8,0)),dmg,'hs-p');
+          addLog(`${e.userData.name} shoots an arrow for ${dmg}!`,'d');
+          s.phase='done';s.timer=0;
+        }
+      }
+      if(s.traveled>=ARROW_MAXDIST){s.phase='done';s.timer=0;}
+
+    } else {
+      s.arwMat.opacity=Math.max(0,s.arwMat.opacity-dt*5);
+      if(s.timer>=0.5){
+        scene.remove(s.orb);scene.remove(s.arwMesh);
+        // Restore nocked arrow on archer
+        if(s.enemy&&!s.enemy.userData.dead&&s.enemy.userData.nockArrow)
+          s.enemy.userData.nockArrow.visible=true;
+        activeShots.splice(i,1);
+      }
+    }
+  }
+}
+
 function makeEnemy(x,z,forceTier){
   const dist=Math.hypot(x,z);
   const tier = forceTier || (dist<40 ? 1 : dist<90 ? 2 : dist<150 ? 3 : 4);
@@ -1753,7 +1951,7 @@ function makeNamedNPC(x,z,type){
   let maxHp,spd,aggroRange,pattern,name,tier,glowCol;
 
   if(type==='skeleton'){
-    maxHp=20;spd=0.42;aggroRange=22;pattern='slam';tier=2;name='Skeleton Warrior';glowCol=0x441100;
+    maxHp=20;spd=0.42;aggroRange=22;pattern='swipe';tier=2;name='Skeleton Warrior';glowCol=0x441100;
     const bone=new THREE.MeshLambertMaterial({color:0xddd5b8});
     const dark=new THREE.MeshLambertMaterial({color:0x998f78});
     const eyeM=new THREE.MeshLambertMaterial({color:0xff2200,emissive:0xcc1100,emissiveIntensity:1.6});
@@ -1795,11 +1993,14 @@ function makeNamedNPC(x,z,type){
       const foot=new THREE.Mesh(new THREE.BoxGeometry(.18,.1,.26),bone);
       foot.position.set(s*.18,.18,.04);g.add(foot);
     });
-    // Rusty sword
+    // Rusty sword (pivot at grip for swipe animation)
+    const swordGroup=new THREE.Group();
+    swordGroup.position.set(.54,1.07,.1);swordGroup.rotation.z=.1;
     const blade=new THREE.Mesh(new THREE.BoxGeometry(.08,.62,.05),rustM);
-    blade.position.set(.54,.8,.1);blade.rotation.z=.1;g.add(blade);
+    blade.position.y=-.27;swordGroup.add(blade);
     const hilt=new THREE.Mesh(new THREE.BoxGeometry(.22,.07,.07),hiltM);
-    hilt.position.set(.54,1.07,.1);g.add(hilt);
+    hilt.position.y=0;swordGroup.add(hilt);
+    g.add(swordGroup);g.userData.swordGroup=swordGroup;
 
   } else if(type==='mage'){
     maxHp=14;spd=0.28;aggroRange=30;pattern='orbit';tier=2;name='Bone Mage';glowCol=0x220055;
@@ -1842,7 +2043,7 @@ function makeNamedNPC(x,z,type){
     g.userData.orbitRing=ring;
 
   } else if(type==='archer'){
-    maxHp=16;spd=0.50;aggroRange=28;pattern='charge';tier=2;name='Skeleton Archer';glowCol=0x114400;
+    maxHp=16;spd=0.50;aggroRange=28;pattern='shoot';tier=2;name='Skeleton Archer';glowCol=0x114400;
     const boneA=new THREE.MeshLambertMaterial({color:0xd4c89a});
     const leatM=new THREE.MeshLambertMaterial({color:0x5a3a1a});
     const bowM=new THREE.MeshLambertMaterial({color:0x6b4a22});
@@ -1884,9 +2085,11 @@ function makeNamedNPC(x,z,type){
     const strM=new THREE.MeshLambertMaterial({color:0xddcc88});
     const bowStr=new THREE.Mesh(strGeo,strM);
     bowStr.position.set(-.44,1.32,.26);bowStr.rotation.z=Math.PI*.5;bowStr.rotation.y=Math.PI*.5;g.add(bowStr);
+    g.userData.bowStr=bowStr;
     // Nocked arrow
     const arrowM=new THREE.Mesh(new THREE.CylinderGeometry(.018,.018,.70,4),arwM);
     arrowM.position.set(-.44,1.42,.22);arrowM.rotation.z=Math.PI*.5;arrowM.rotation.y=Math.PI*.5;g.add(arrowM);
+    g.userData.nockArrow=arrowM;
     // Quiver (back)
     const quiver=new THREE.Mesh(new THREE.CylinderGeometry(.08,.07,.44,6),leatM);
     quiver.position.set(.28,1.40,-.20);quiver.rotation.z=.18;g.add(quiver);
@@ -2861,6 +3064,8 @@ function update(){
   updateSlams(dt);
   updateCharges(dt);
   updateOrbits(dt);
+  updateSwipes(dt);
+  updateShots(dt);
   updateRingAtks(dt);
 
   // ── ENEMY AI ──
@@ -2937,16 +3142,27 @@ function update(){
     const alreadyCharging = activeCharges.some(c => c.enemy === e);
     const alreadyOrbiting = activeOrbits.some(o => o.enemy === e);
     const alreadyRinging  = activeRingAtks.some(r => r.enemy === e);
-    const busyAttacking = alreadySlamming||alreadyCharging||alreadyOrbiting||alreadyRinging;
+    const alreadySwiping  = activeSwipes.some(s => s.enemy === e && s.phase !== 'fade');
+    const alreadyShooting = activeShots.some(s => s.enemy === e && s.phase !== 'done');
+    const busyAttacking = alreadySlamming||alreadyCharging||alreadyOrbiting||alreadyRinging||alreadySwiping||alreadyShooting;
 
     // Cap total concurrent slams to 2
     const totalActiveSlams = activeSlams.filter(s => s.phase !== 'fade').length;
     e.userData.attackCd -= dt;
 
     const cdBase = isHordeNight ? 2.5 : 3.5;
-    if(e.userData.attackCd <= 0 && dist < 10 && !busyAttacking){
-      const pat = e.userData.pattern || 'slam';
-      if(pat === 'slam' && totalActiveSlams < 2){
+    const pat = e.userData.pattern || 'slam';
+    const atkRange = pat === 'shoot' ? e.userData.aggroRange * 0.85 : 10;
+    if(e.userData.attackCd <= 0 && dist < atkRange && !busyAttacking){
+      if(pat === 'swipe'){
+        startSwipe(e);
+        addLog(`${e.userData.name} winds up a double swipe!`, '');
+        showNotif('⚠ DOUBLE SWIPE — STEP BACK!');
+      } else if(pat === 'shoot'){
+        startShoot(e);
+        addLog(`${e.userData.name} draws an arrow...`, '');
+        showNotif('⚠ ARROW INCOMING — MOVE!');
+      } else if(pat === 'slam' && totalActiveSlams < 2){
         startSlam(e); showSlamWarn();
         addLog(`${e.userData.name} winds up a slam!`, '');
       } else if(pat === 'charge'){
